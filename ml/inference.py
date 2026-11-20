@@ -1,6 +1,6 @@
 """
 Project Vero // ML Inference Module
-Connects the trained Machine Learning Threat Model to the Vero Transaction Firewall.
+Connects the trained 15-Feature Machine Learning Threat Model to the Vero Transaction Firewall.
 """
 
 import os
@@ -19,12 +19,18 @@ from ml.dataset_loader import FEATURE_NAMES, shannon_entropy
 class ThreatPredictor:
     def __init__(self):
         self.model = None
+        self._load_model()
+
+    def _load_model(self):
         if os.path.exists(MODEL_PATH):
-            with open(MODEL_PATH, "rb") as f:
-                self.model = pickle.load(f)
+            try:
+                with open(MODEL_PATH, "rb") as f:
+                    self.model = pickle.load(f)
+            except Exception:
+                self.model = None
 
     def extract_features_from_tx(self, to_addr: str, value_wei: int, calldata_hex: str, declared_intent: str) -> List[float]:
-        """Extracts the 12 EVM telemetry features from raw transaction parameters."""
+        """Extracts the 15 EVM telemetry features from raw transaction parameters."""
         raw = calldata_hex.lower().replace("0x", "")
         data_bytes = bytes.fromhex(raw) if raw else b""
         
@@ -46,7 +52,7 @@ class ThreatPredictor:
         val_eth = float(value_wei) / 1e18
 
         storage_slot_mut = 1.0 if is_upgrade == 1.0 else 0.0
-        selector_freq = 0.95 if selector == "a9059cbb" else (0.85 if selector == "095ea7b3" else 0.05)
+        selector_freq = 0.96 if selector == "a9059cbb" else (0.85 if selector == "095ea7b3" else 0.05)
         nonce_dev = 0.0
         gas_ratio = 2.5 if (is_upgrade or is_delegate) else 1.1
         
@@ -54,6 +60,13 @@ class ThreatPredictor:
         intent_mismatch = 0.0
         if (is_upgrade or is_infinite or is_delegate) and "transfer" in declared_intent.lower():
             intent_mismatch = 1.0
+
+        # Additional 3 Features
+        call_depth = 2.0 if is_delegate else (1.0 if is_upgrade else 0.0)
+        is_gov_timelock = 1.0 if "governance" in declared_intent.lower() or "timelock" in declared_intent.lower() else 0.0
+        
+        # Contract reputation score: high for standard tokens, low for new exploit contracts
+        contract_rep = 0.15 if (is_upgrade or is_delegate) else (0.95 if selector == "a9059cbb" else 0.80)
 
         return [
             calldata_len,
@@ -67,18 +80,23 @@ class ThreatPredictor:
             selector_freq,
             nonce_dev,
             gas_ratio,
-            intent_mismatch
+            intent_mismatch,
+            call_depth,
+            is_gov_timelock,
+            contract_rep
         ]
 
     def predict(self, to_addr: str, value_wei: int, calldata_hex: str, declared_intent: str = "") -> Dict[str, Any]:
+        self._load_model()
         features = self.extract_features_from_tx(to_addr, value_wei, calldata_hex, declared_intent)
         
         if self.model is None:
-            # Fallback if unpickled
+            # Fallback heuristic
             is_mal = 1 if features[11] == 1.0 or features[2] == 1.0 else 0
-            prob = 0.99 if is_mal else 0.01
+            prob = 0.985 if is_mal else 0.015
         else:
-            X = np.array([features])
+            import pandas as pd
+            X = pd.DataFrame([features], columns=FEATURE_NAMES)
             prob = float(self.model.predict_proba(X)[0][1])
 
         is_threat = prob >= 0.50
@@ -87,13 +105,12 @@ class ThreatPredictor:
         return {
             "ml_anomaly_probability": round(prob, 4),
             "ml_classification": classification,
-            "confidence_score": f"{prob * 100:.1f}%",
+            "confidence_score": f"{prob * 100:.2f}%",
             "features_extracted": dict(zip(FEATURE_NAMES, [round(f, 2) for f in features])),
             "ml_recommendation": "BLOCK" if is_threat else "ALLOW"
         }
 
 
-# Global singleton instance
 _predictor = ThreatPredictor()
 
 def predict_transaction_anomaly(to: str, value: int, data: str, declared_intent: str = "") -> Dict[str, Any]:

@@ -1,28 +1,39 @@
 {
-  "dataset": "Kaggle Ethereum Phishing & Smart Contract Attack Dataset",
-  "total_samples": 1500,
-  "test_samples": 300,
+  "dataset_name": "Multi-Protocol DeFi & Attack Vector Benchmark (Kaggle/DeFiHackLabs)",
+  "total_samples": 3000,
+  "train_samples": 2250,
+  "test_samples": 750,
+  "feature_count": 15,
   "metrics": {
-    "accuracy": 1.0,
-    "precision": 1.0,
+    "accuracy": 0.9987,
+    "precision": 0.9973,
     "recall": 1.0,
-    "f1_score": 1.0,
-    "roc_auc": 1.0
+    "f1_score": 0.9987,
+    "roc_auc": 1.0,
+    "cv_f1_mean": 0.9973,
+    "cv_f1_std": 0.0026
   },
   "confusion_matrix": {
-    "true_negatives": 150,
-    "false_positives": 0,
+    "true_negatives": 374,
+    "false_positives": 1,
     "false_negatives": 0,
-    "true_positives": 150
+    "true_positives": 375
   },
-  "top_features": {
-    "intent_declaration_mismatch": 0.355,
-    "selector_frequency_score": 0.1829,
-    "gas_limit_ratio": 0.138,
-    "sender_nonce_deviation": 0.1317,
-    "is_infinite_allowance": 0.0733,
-    "value_outflow_eth": 0.0465,
-    "storage_slot_mutation_expected": 0.0265,
-    "calldata_entropy": 0.0188
+  "feature_importance_ranking": {
+    "sender_nonce_deviation": 0.2645,
+    "intent_declaration_mismatch": 0.232,
+    "contract_reputation_score": 0.1608,
+    "selector_frequency_score": 0.0835,
+    "calldata_length": 0.0527,
+    "storage_slot_mutation_expected": 0.0484,
+    "calldata_entropy": 0.0453,
+    "value_outflow_eth": 0.033,
+    "gas_limit_ratio": 0.0223,
+    "is_infinite_allowance": 0.018,
+    "call_depth": 0.0125,
+    "is_upgrade_selector": 0.0097,
+    "is_governance_timelock_origin": 0.0091,
+    "is_delegatecall": 0.0083,
+    "target_is_contract": 0.0
   }
 }
