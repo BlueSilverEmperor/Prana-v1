@@ -7,6 +7,12 @@
  * than a well-formed ALLOW, the request is rejected. Opt out only with `failOpen: true`.
  */
 
+import { BIP39_WORDLIST } from "./bip39_wordlist.ts";
+import { keccak256 } from "./keccak.ts";
+
+export { BIP39_WORDLIST, keccak256 };
+
+
 export interface RequestArguments {
   readonly method: string;
   readonly params?: readonly unknown[] | object;
@@ -379,3 +385,86 @@ export class VeroGuardProvider implements EIP1193Provider {
 export function createVeroGuard(provider: EIP1193Provider, config?: VeroGuardConfig): VeroGuardProvider {
   return new VeroGuardProvider(provider, config);
 }
+
+function normalizeHexBytes(val: string | number | bigint, expectedLen: number): Uint8Array {
+  let hex: string;
+  if (typeof val === "number" || typeof val === "bigint") {
+    hex = val.toString(16);
+  } else {
+    hex = val.trim().replace(/^0x/i, "");
+  }
+  if (hex.length % 2 !== 0) hex = "0" + hex;
+  const targetChars = expectedLen * 2;
+  if (hex.length < targetChars) {
+    hex = hex.padStart(targetChars, "0");
+  } else if (hex.length > targetChars) {
+    hex = hex.slice(hex.length - targetChars);
+  }
+  const bytes = new Uint8Array(expectedLen);
+  for (let i = 0; i < expectedLen; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+export interface ChecksumParams {
+  chainId: number | string | bigint;
+  safeAddress: string;
+  nonce: number | string | bigint;
+  rawTxHash: string;
+  intentHash: string;
+  mode?: "STANDARD_EVM" | "QUAI_NATIVE" | "standard" | "quai";
+  shardZone?: string;
+  quaiValueCap?: number | string | bigint;
+  qiValueCap?: number | string | bigint;
+}
+
+export function packChecksumPreimage(params: ChecksumParams): Uint8Array {
+  const chainIdBytes = normalizeHexBytes(params.chainId, 32);
+  const safeAddrBytes = normalizeHexBytes(params.safeAddress, 20);
+  const nonceBytes = normalizeHexBytes(params.nonce, 32);
+  const rawTxBytes = normalizeHexBytes(params.rawTxHash, 32);
+  const intentBytes = normalizeHexBytes(params.intentHash, 32);
+
+  const isQuai = (params.mode || "").toUpperCase().includes("QUAI");
+  const totalLen = isQuai ? 244 : 148;
+  const out = new Uint8Array(totalLen);
+  out.set(chainIdBytes, 0);
+  out.set(safeAddrBytes, 32);
+  out.set(nonceBytes, 52);
+  out.set(rawTxBytes, 84);
+  out.set(intentBytes, 116);
+
+  if (isQuai) {
+    const shardZone = params.shardZone || "cyprus1";
+    const zoneBytes = new TextEncoder().encode(shardZone);
+    const zoneHash = keccak256(zoneBytes);
+    const quaiCap = normalizeHexBytes(params.quaiValueCap ?? 0, 32);
+    const qiCap = normalizeHexBytes(params.qiValueCap ?? 0, 32);
+    out.set(zoneHash, 148);
+    out.set(quaiCap, 180);
+    out.set(qiCap, 212);
+  }
+  return out;
+}
+
+export function computeFourWordChecksum(params: ChecksumParams, wordCount = 4, separator = "-"): string {
+  const preimage = packChecksumPreimage(params);
+  const digest = keccak256(preimage);
+
+  let digestInt = 0n;
+  for (let i = 0; i < 32; i++) {
+    digestInt = (digestInt << 8n) | BigInt(digest[i]);
+  }
+
+  const totalBits = 256n;
+  const bitsPerWord = 11n;
+  const words: string[] = [];
+  for (let i = 0n; i < BigInt(wordCount); i++) {
+    const shift = totalBits - ((i + 1n) * bitsPerWord);
+    const wordIdx = Number((digestInt >> shift) & 0x7ffn);
+    words.push(BIP39_WORDLIST[wordIdx]);
+  }
+  return words.join(separator);
+}
+

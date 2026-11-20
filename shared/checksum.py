@@ -127,3 +127,38 @@ def compute_4_word_checksum(
         words = [_get_bip39_word(i) for i in indices]
 
     return words, indices
+
+
+def compute_four_word_checksum(
+    chain_id: int,
+    safe_address: str,
+    nonce: int,
+    raw_tx_hash: str,
+    intent_hash: str,
+    mode: str = "STANDARD_EVM",
+    shard_zone: str = "cyprus1",
+    quai_value_cap: int = 0,
+    qi_value_cap: int = 0,
+) -> str:
+    """
+    Computes 4-word BIP-39 checksum string (word1-word2-word3-word4) for
+    (chain_id, safe_address, nonce, raw_tx_hash, intent_hash).
+    """
+    import sys
+    from pathlib import Path
+    api_agents_dir = str(Path(__file__).resolve().parent.parent / "api-agents")
+    if api_agents_dir not in sys.path:
+        sys.path.insert(0, api_agents_dir)
+    from api_agents.utils.four_word_checksum import compute_four_word_checksum as _cfwc
+    return _cfwc(
+        chain_id=chain_id,
+        safe_address=safe_address,
+        nonce=nonce,
+        raw_tx_hash=raw_tx_hash,
+        intent_hash=intent_hash,
+        mode=mode,
+        shard_zone=shard_zone,
+        quai_value_cap=quai_value_cap,
+        qi_value_cap=qi_value_cap,
+    )
+

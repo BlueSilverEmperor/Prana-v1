@@ -13,7 +13,7 @@
     "node": ">=23.6"
   },
   "scripts": {
-    "test": "node tests/test_retail_protections.mjs && node tests/test_quai_provider.mjs"
+    "test": "node tests/test_retail_protections.mjs && node tests/test_quai_provider.mjs && node tests/test_checksum_parity.mjs"
   },
   "keywords": ["ethereum", "quai", "pelagus", "sharding", "eip-1193", "security", "firewall", "multisig", "safe", "permit2"],
   "author": "Project Vero Team",
