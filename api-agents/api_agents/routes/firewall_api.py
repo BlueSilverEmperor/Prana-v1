@@ -1,15 +1,18 @@
 """
-Firewall API Routes: /v1/simulate, /v1/verify-intent, /v1/audit-receipt.
+Firewall API Routes: /v1/simulate, /v1/verify-intent, /v1/audit-receipt, /v1/quai/status.
 Authoritative implementation of the Vero Firewall API.
+Supports Dual-Mode Subsystem Switch: STANDARD_EVM vs. QUAI_NATIVE.
 Invariants:
 - LLMs are never on the /v1/simulate path.
 - All decisions are strictly deterministic.
 - Measured execution target < 150 ms.
 """
 
+import os
+import json
 import time
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional, Union
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from api_agents.adapters.factory import build_adapter
 from api_agents.adapters.mock_adapter import SIG_TRANSFER
@@ -26,6 +29,8 @@ from api_agents.models.schemas import (
 )
 from api_agents.utils.four_word_checksum import compute_four_word_checksum
 from api_agents.utils.keccak import keccak256
+from simulator.analyzers.poisoning import detect_quai_shard_prefix_spoofing
+from api_agents.agents.hashference_client import get_hashference_telemetry
 
 router = APIRouter(prefix="/v1", tags=["Firewall"])
 
@@ -72,17 +77,46 @@ def _compute_raw_tx_hash(req: SimulateRequest) -> str:
     return "0x" + keccak256(preimage).hex()
 
 
-@router.post("/simulate", response_model=SimulateResponse)
+@router.post("/simulate")
 async def simulate_transaction(
     req: SimulateRequest,
     simulator: SimulatorProtocol = Depends(get_simulator),
     rule_engine: RuleEngineProtocol = Depends(get_rule_engine),
-) -> SimulateResponse:
+    x_vero_engine: Optional[str] = Header(None, alias="X-Vero-Engine"),
+    x_quai_work_gate: Optional[str] = Header(None, alias="X-Quai-Work-Gate"),
+    payment_signature: Optional[str] = Header(None, alias="PAYMENT-SIGNATURE"),
+    engine: Optional[str] = Query(None),
+):
     """
     Simulates transaction state changes and evaluates deterministic security rules.
     Guaranteed < 150ms execution. Zero LLMs on this path.
+    Supports STANDARD_EVM and QUAI_NATIVE modes with optional x402 Work PoW gate.
     """
     start_time = time.perf_counter()
+
+    # Determine Engine Mode
+    engine_val = (x_vero_engine or engine or os.getenv("VERO_ENGINE_MODE", "")).strip().lower()
+    is_quai = engine_val in ("quai", "quai_native") or req.chain_id in (9, 15000)
+    mode_str = "QUAI_NATIVE" if is_quai else "STANDARD_EVM"
+
+    # Optional x402 Work Gate Check
+    work_gate_active = os.getenv("QUAI_WORK_GATE", "false").lower() == "true" or (
+        x_quai_work_gate and x_quai_work_gate.lower() == "true"
+    )
+    if is_quai and work_gate_active:
+        if not payment_signature or "nonce=" not in payment_signature:
+            job_id = f"job-{int(time.time()*1000)}"
+            payout = os.getenv("QUAI_PAYOUT_ADDRESS", "0x0017a140Aa3E981100a9becA4E685f962f0cF6C9")
+            headers = {
+                "PAYMENT-REQUIRED": f"quai-workshare-v1 job={job_id} difficulty=1 payout={payout}",
+                "PAYMENT-PAYOUT-ADDRESS": payout,
+            }
+            return Response(
+                status_code=402,
+                content=json.dumps({"detail": "402 Payment Required: x402 Proof-of-Work payment required for Quai high-throughput simulation"}),
+                media_type="application/json",
+                headers=headers,
+            )
 
     # 1. Deterministic tx hash calculation
     raw_tx_hash = _compute_raw_tx_hash(req)
@@ -97,13 +131,25 @@ async def simulate_transaction(
     # 3. Deterministic 12-rule evaluation
     eval_result = rule_engine.evaluate(raw_sim, req)
 
-    # 4. Generate 44-bit BIP-39 four-word human verification checksum
+    # 4. Quai Shard Spoofing check if in Quai mode
+    if is_quai:
+        shard_check = detect_quai_shard_prefix_spoofing(req.to, "cyprus1")
+        if shard_check:
+            eval_result.human_warnings.append(shard_check["warning"])
+            if "QUAI_SHARD_PREFIX_SPOOFING" not in eval_result.flags:
+                eval_result.flags.append("QUAI_SHARD_PREFIX_SPOOFING")
+            eval_result.decision = DecisionEnum.BLOCK
+            eval_result.risk_score = max(eval_result.risk_score, 95)
+
+    # 5. Generate 44-bit BIP-39 four-word human verification checksum
     checksum = compute_four_word_checksum(
         chain_id=req.chain_id,
         safe_address=req.safe_address,
         nonce=req.nonce,
         raw_tx_hash=raw_tx_hash,
         intent_hash=intent_hash,
+        mode=mode_str,
+        shard_zone="cyprus1",
     )
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000.0
@@ -125,6 +171,8 @@ async def simulate_transaction(
 async def verify_intent(
     req: VerifyIntentRequest,
     simulator: SimulatorProtocol = Depends(get_simulator),
+    x_vero_engine: Optional[str] = Header(None, alias="X-Vero-Engine"),
+    engine: Optional[str] = Query(None),
 ) -> VerifyIntentResponse:
     """
     Verifies that the executed bytecode state transition strictly matches
@@ -163,12 +211,18 @@ async def verify_intent(
     matched = len(discrepancies) == 0
     decision = DecisionEnum.ALLOW if matched else DecisionEnum.BLOCK
 
+    engine_val = (x_vero_engine or engine or os.getenv("VERO_ENGINE_MODE", "")).strip().lower()
+    is_quai = engine_val in ("quai", "quai_native") or req.chain_id in (9, 15000)
+    mode_str = "QUAI_NATIVE" if is_quai else "STANDARD_EVM"
+
     checksum = compute_four_word_checksum(
         chain_id=req.chain_id,
         safe_address=req.safe_address,
         nonce=0,
         raw_tx_hash=req.raw_tx_hash,
         intent_hash=req.intent_hash,
+        mode=mode_str,
+        shard_zone="cyprus1",
     )
 
     return VerifyIntentResponse(
@@ -194,7 +248,11 @@ class AuditReceiptRequest(BaseModel):
 
 
 @router.post("/audit-receipt", response_model=AuditReceipt)
-async def generate_audit_receipt(req: AuditReceiptRequest) -> AuditReceipt:
+async def generate_audit_receipt(
+    req: AuditReceiptRequest,
+    x_vero_engine: Optional[str] = Header(None, alias="X-Vero-Engine"),
+    engine: Optional[str] = Query(None),
+) -> AuditReceipt:
     """
     Issues a cryptographically signed Ed25519 forensic receipt for an audited transaction.
     """
@@ -225,3 +283,22 @@ async def generate_audit_receipt(req: AuditReceiptRequest) -> AuditReceipt:
         ed25519_signature=receipt_data.ed25519_signature,
         public_key=receipt_data.public_key,
     )
+
+
+@router.get("/quai/status")
+async def quai_subsystem_status():
+    """Reports active status of the Quai Network subsystem, Hashference x402, and PoEM telemetry."""
+    return {
+        "status": "active",
+        "subsystem": "QUAI_NATIVE",
+        "active_shard": "cyprus1",
+        "zone_prefix": "0x00",
+        "coordinates": [0, 0],
+        "dual_assets": {
+            "quai": {"symbol": "QUAI", "type": "Native Hard Money / Gas", "status": "TRACKED"},
+            "qi": {"symbol": "QI", "type": "Energy Dollar Token", "status": "TRACKED"},
+        },
+        "consensus": "PoEM (Proof-of-Entropy-Minima)",
+        "hashference_x402": get_hashference_telemetry(),
+        "work_gate_enabled": os.getenv("QUAI_WORK_GATE", "false").lower() == "true",
+    }

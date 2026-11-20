@@ -1,14 +1,21 @@
 {
   "name": "@vero/guard-sdk",
-  "version": "1.0.0",
-  "description": "TypeScript EIP-1193 wrapper & retail protection guard for Project Vero",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "test": "node tests/test_retail_protections.mjs"
+  "version": "1.1.0",
+  "description": "TypeScript EIP-1193 & Quai Pelagus wrapper & retail protection guard for Project Vero",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
   },
-  "keywords": ["ethereum", "eip-1193", "security", "firewall", "multisig", "safe", "permit2"],
+  "files": ["src"],
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "test": "node tests/test_retail_protections.mjs && node tests/test_quai_provider.mjs"
+  },
+  "keywords": ["ethereum", "quai", "pelagus", "sharding", "eip-1193", "security", "firewall", "multisig", "safe", "permit2"],
   "author": "Project Vero Team",
   "license": "MIT"
 }

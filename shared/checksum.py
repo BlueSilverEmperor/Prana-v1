@@ -2,13 +2,12 @@
 4-Word Dual-Device BIP-39 Checksum Generator for Project Vero (Prana-v1).
 Allows signers to verify that their laptop screen matches their mobile phone
 or hardware device out-of-band truth.
+Supports both STANDARD_EVM and QUAI_NATIVE shard-bound preimages.
 """
 
 import hashlib
 from typing import List, Tuple
 
-# BIP-39 Standard English Wordlist (first 256 compact sample + deterministic generator)
-# Complete 2048 words standard
 BIP39_SAMPLE_WORDS = [
     "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract",
     "absurd", "abuse", "access", "accident", "account", "accuse", "achieve", "acid",
@@ -45,7 +44,6 @@ BIP39_SAMPLE_WORDS = [
 ]
 
 def _get_bip39_word(index: int) -> str:
-    # Uses sample or deterministic fallback to guarantee 2048 entries
     if index < len(BIP39_SAMPLE_WORDS):
         return BIP39_SAMPLE_WORDS[index]
     base = BIP39_SAMPLE_WORDS[index % len(BIP39_SAMPLE_WORDS)]
@@ -55,17 +53,20 @@ def compute_4_word_checksum(
     vault: str,
     nonce: int,
     safe_tx_hash: str,
-    policy_hash: str
+    policy_hash: str,
+    mode: str = "STANDARD_EVM",
+    shard_zone: str = "cyprus1",
+    quai_value_cap: int = 0,
+    qi_value_cap: int = 0,
 ) -> Tuple[List[str], List[int]]:
     """
     Computes 4 BIP-39 words matching VeroGuard.sol computeChecksumWordIndices:
-    digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash))
-    indices[0] = uint16(uint256(digest) & 0x7FF)
-    indices[1] = uint16((uint256(digest) >> 11) & 0x7FF)
-    indices[2] = uint16((uint256(digest) >> 22) & 0x7FF)
-    indices[3] = uint16((uint256(digest) >> 33) & 0x7FF)
-    Returns (words, indices).
+    STANDARD_EVM:
+      digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash))
+    QUAI_NATIVE:
+      digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash, zoneHash, quaiCap, qiCap))
     """
+    is_quai = str(mode).upper() in ("QUAI_NATIVE", "QUAI")
     try:
         import eth_abi
         from Crypto.Hash import keccak
@@ -77,10 +78,19 @@ def compute_4_word_checksum(
         tx_bytes = bytes.fromhex(tx_hex.rjust(64, "0"))
         pol_bytes = bytes.fromhex(pol_hex.rjust(64, "0"))
 
-        encoded = eth_abi.encode(
-            ["address", "uint256", "bytes32", "bytes32"],
-            [clean_vault, nonce, tx_bytes, pol_bytes]
-        )
+        if is_quai:
+            zk = keccak.new(digest_bits=256)
+            zk.update(shard_zone.encode("utf-8"))
+            zone_hash = zk.digest()
+            encoded = eth_abi.encode(
+                ["address", "uint256", "bytes32", "bytes32", "bytes32", "uint256", "uint256"],
+                [clean_vault, nonce, tx_bytes, pol_bytes, zone_hash, quai_value_cap, qi_value_cap]
+            )
+        else:
+            encoded = eth_abi.encode(
+                ["address", "uint256", "bytes32", "bytes32"],
+                [clean_vault, nonce, tx_bytes, pol_bytes]
+            )
         k = keccak.new(digest_bits=256)
         k.update(encoded)
         digest = k.digest()
@@ -88,11 +98,17 @@ def compute_4_word_checksum(
         try:
             from Crypto.Hash import keccak
             k = keccak.new(digest_bits=256)
-            payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
+            if is_quai:
+                payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}:{shard_zone.lower()}:{quai_value_cap}:{qi_value_cap}".encode()
+            else:
+                payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
             k.update(payload)
             digest = k.digest()
         except Exception:
-            payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
+            if is_quai:
+                payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}:{shard_zone.lower()}:{quai_value_cap}:{qi_value_cap}".encode()
+            else:
+                payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
             digest = hashlib.sha256(payload).digest()
 
     val = int.from_bytes(digest, byteorder="big")

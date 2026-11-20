@@ -25,8 +25,10 @@ def _scale(amount: int, decimals: int) -> str:
 
 
 def asset_label(asset: str, ctx: EngineContext) -> str:
-    if asset == "ETH":
-        return "ETH"
+    if asset in ("ETH", "QUAI"):
+        return asset
+    if asset == "QI":
+        return "QI (Energy Dollar)"
     if "#" in asset:
         token, token_id = asset.split("#", 1)
         return f"NFT #{token_id} of {ctx.symbol_of(token) or checksum(token)}"
@@ -38,7 +40,7 @@ def format_amount(asset: str, amount: int, ctx: EngineContext) -> str:
         return asset_label(asset, ctx)
     if amount >= UNLIMITED_THRESHOLD:
         return f"UNLIMITED {asset_label(asset, ctx)}"
-    decimals = ETH_DECIMALS if asset == "ETH" else ctx.decimals_of(asset)
+    decimals = ETH_DECIMALS if asset in ("ETH", "QUAI") else (ctx.decimals_of(asset) if asset != "QI" else 6)
     if decimals is None:
         return f"{amount} units of {checksum(asset)}"
     return f"{_scale(amount, decimals)} {asset_label(asset, ctx)}"

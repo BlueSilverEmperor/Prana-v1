@@ -77,10 +77,28 @@
         <i data-lucide="lock" class="w-3.5 h-3.5 text-purple-400"></i>
         <span class="text-slate-300">Cancun EIP-1153: <strong class="text-purple-400">Transient Guard</strong></span>
       </div>
+      <div id="quaiShardBadge" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
+        <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Shard: <strong class="text-cyan-300">Cyprus-1 [0,0] (0x00)</strong></span>
+      </div>
+      <div id="quaiDualAssetBadge" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/80 border border-indigo-500/40 text-indigo-300">
+        <i data-lucide="coins" class="w-3.5 h-3.5 text-indigo-400"></i>
+        <span>Dual Ledger: <strong class="text-indigo-300">$QUAI + $QI</strong></span>
+      </div>
     </div>
 
     <!-- Demo Controls -->
     <div class="flex items-center gap-3">
+      <!-- Master Subsystem Switch: STANDARD EVM vs QUAI SUBSYSTEM -->
+      <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono">
+        <button id="btnEngineEvm" onclick="setEngineMode('standard')" class="px-2.5 py-1 rounded-md transition bg-emerald-600 text-white font-bold flex items-center gap-1 shadow">
+          <span>⚡</span> EVM
+        </button>
+        <button id="btnEngineQuai" onclick="setEngineMode('quai')" class="px-2.5 py-1 rounded-md transition text-slate-400 hover:text-white flex items-center gap-1">
+          <span>⛏️</span> QUAI SUBSYSTEM
+        </button>
+      </div>
+
       <div id="backendStatus" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
         <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
         <span>Checking API...</span>
@@ -196,8 +214,12 @@
           </div>
         </div>
 
-        <!-- Blind Sign Button -->
+        <!-- Blind Sign Button & Wallet Connector -->
         <div class="pt-2 flex flex-col gap-2">
+          <button id="walletConnectBtn" onclick="connectWalletPrompt()" class="w-full py-2 px-3 rounded-lg text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-2 transition">
+            <i data-lucide="wallet" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span id="walletConnectText">Connect MetaMask / Safe</span>
+          </button>
           <button onclick="triggerBlindSignWarning()" class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]">
             <i data-lucide="key" class="w-4 h-4"></i> Sign with Hardware Wallet
           </button>
@@ -605,12 +627,62 @@
       };
     }
 
+    let currentEngineMode = "standard";
+
+    function setEngineMode(mode) {
+      currentEngineMode = mode;
+      const isQuai = mode === "quai";
+      const btnEvm = document.getElementById("btnEngineEvm");
+      const btnQuai = document.getElementById("btnEngineQuai");
+      if (btnEvm) {
+        btnEvm.className = !isQuai
+          ? "px-2.5 py-1 rounded-md transition bg-emerald-600 text-white font-bold flex items-center gap-1 shadow"
+          : "px-2.5 py-1 rounded-md transition text-slate-400 hover:text-white flex items-center gap-1";
+      }
+      if (btnQuai) {
+        btnQuai.className = isQuai
+          ? "px-2.5 py-1 rounded-md transition bg-cyan-600 text-white font-bold flex items-center gap-1 shadow"
+          : "px-2.5 py-1 rounded-md transition text-slate-400 hover:text-white flex items-center gap-1";
+      }
+
+      const shardBadge = document.getElementById("quaiShardBadge");
+      if (shardBadge) shardBadge.classList.toggle("hidden", !isQuai);
+
+      const dualBadge = document.getElementById("quaiDualAssetBadge");
+      if (dualBadge) dualBadge.classList.toggle("hidden", !isQuai);
+
+      const walletText = document.getElementById("walletConnectText");
+      if (walletText) {
+        walletText.innerText = isQuai ? "Connect Pelagus / BlipPay (Cyprus-1)" : "Connect MetaMask / Safe";
+      }
+
+      loadPreset(currentPreset);
+    }
+
+    function connectWalletPrompt() {
+      if (currentEngineMode === "quai") {
+        if (typeof window !== "undefined" && window.pelagus) {
+          alert("Connected to Pelagus Wallet (Quai Cyprus-1 Shard [0,0]).");
+        } else {
+          alert("Pelagus Wallet not detected. Download Pelagus extension or BlipPay to transact on Quai Network.");
+        }
+      } else {
+        alert("Connected to MetaMask / Safe Treasury on Ethereum.");
+      }
+    }
+
     async function evaluatePreset(key) {
       const p = PRESETS[key];
+      const isQuai = currentEngineMode === "quai";
+      const chainId = isQuai ? 15000 : 1;
+      const headers = { "Content-Type": "application/json" };
+      if (isQuai) {
+        headers["X-Vero-Engine"] = "quai";
+      }
       try {
-        const res = await fetch(`${API_BASE}/v1/simulate`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chain_id: 1, safe_address: SAFE, nonce: 0, label: p.claimedAction,
+        const res = await fetch(`${API_BASE}/v1/simulate${isQuai ? "?engine=quai" : ""}`, {
+          method: "POST", headers,
+          body: JSON.stringify({ chain_id: chainId, safe_address: SAFE, nonce: 0, label: p.claimedAction,
                                  declared_intent: p.declared, ...p.tx })
         });
         if (!res.ok) throw new Error(`API rejected the preset (HTTP ${res.status}): ${await readApiError(res)}`);

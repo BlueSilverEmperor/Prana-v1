@@ -1,6 +1,7 @@
 """
 FastMCP Server for Project Vero (#42).
 Exposes the tool `vero_simulate_and_verify` for agentic workflows (e.g. Claude, Antigravity, MCP clients).
+Supports dual-mode STANDARD_EVM and QUAI_NATIVE.
 """
 
 import asyncio
@@ -9,11 +10,11 @@ from api_agents.adapters.factory import build_adapter
 from api_agents.models.schemas import SimulateRequest
 from api_agents.utils.four_word_checksum import compute_four_word_checksum
 from api_agents.utils.keccak import keccak256
+from shared.schemas import QUAI_ZONES
 
 
 class VeroMCPToolServer:
     def __init__(self, adapter: Optional[Any] = None):
-        # Same adapter selection as the REST API, so both channels return the same verdict.
         self.adapter = adapter or build_adapter()
 
     async def vero_simulate_and_verify(
@@ -25,10 +26,15 @@ class VeroMCPToolServer:
         data: str = "0x",
         nonce: int = 0,
         intent_hash: Optional[str] = None,
+        mode: str = "STANDARD_EVM",
+        shard_zone: str = "cyprus1",
+        quai_value_cap: int = 0,
+        qi_value_cap: int = 0,
     ) -> Dict[str, Any]:
         """
-        MCP Tool: Simulates transaction execution, evaluates 12 deterministic security rules,
+        MCP Tool: Simulates transaction execution, evaluates deterministic security rules,
         and generates human-readable warnings plus 4-word BIP-39 checksum.
+        Supports Quai Network shard-aware verification when mode == 'QUAI_NATIVE'.
         """
         req = SimulateRequest(
             chain_id=chain_id,
@@ -78,18 +84,32 @@ class VeroMCPToolServer:
             nonce=req.nonce,
             raw_tx_hash=raw_tx_hash,
             intent_hash=req.intent_hash,
+            mode=mode,
+            shard_zone=shard_zone,
+            quai_value_cap=quai_value_cap,
+            qi_value_cap=qi_value_cap,
         )
 
-        return {
+        res = {
             "decision": eval_res.decision.value,
             "risk_score": eval_res.risk_score,
             "flags": eval_res.flags,
             "four_word_checksum": checksum,
             "state_diffs": [diff.model_dump() for diff in sim_res.state_diffs],
             "warnings": eval_res.human_warnings,
+            "mode": mode,
         }
+
+        if str(mode).upper() in ("QUAI_NATIVE", "QUAI"):
+            res["quai_metadata"] = {
+                "shard_zone": shard_zone,
+                "poem_finality_sec": 5.0,
+                "dual_assets": ["QUAI", "QI"],
+                "coordinates": QUAI_ZONES.get(shard_zone.lower(), {}).get("coords", [0, 0]),
+            }
+
+        return res
 
 
 def create_mcp_server():
-    server = VeroMCPToolServer()
-    return server
+    return VeroMCPToolServer()

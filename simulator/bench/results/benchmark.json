@@ -4,7 +4,7 @@
     "detectionRate": 1.0,
     "blockRate": 1.0,
     "falsePositiveRate": 0.0,
-    "p95LatencyMs": 0.306,
+    "p95LatencyMs": 0.406,
     "confidenceIntervals": {
       "detectionRate95": [
         0.8865,
@@ -19,7 +19,7 @@
         0.1332
       ]
     },
-    "p50LatencyMs": 0.142,
+    "p50LatencyMs": 0.147,
     "mode": "static"
   },
   "mode": "static",
@@ -165,7 +165,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.887
+      "latency_ms": 0.744
     },
     {
       "id": "h02",
@@ -177,7 +177,7 @@
         "R4"
       ],
       "expected_matched": true,
-      "latency_ms": 0.244
+      "latency_ms": 0.227
     },
     {
       "id": "h03",
@@ -190,7 +190,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.193
+      "latency_ms": 0.203
     },
     {
       "id": "h04",
@@ -202,7 +202,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.146
+      "latency_ms": 0.154
     },
     {
       "id": "h05",
@@ -214,7 +214,7 @@
         "R5"
       ],
       "expected_matched": true,
-      "latency_ms": 0.082
+      "latency_ms": 0.084
     },
     {
       "id": "h06",
@@ -224,7 +224,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.262
+      "latency_ms": 0.234
     },
     {
       "id": "h07",
@@ -234,7 +234,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.103
+      "latency_ms": 0.114
     },
     {
       "id": "h08",
@@ -244,7 +244,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.136
+      "latency_ms": 0.135
     },
     {
       "id": "h09",
@@ -254,7 +254,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.142
+      "latency_ms": 0.145
     },
     {
       "id": "h10",
@@ -264,7 +264,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.232
+      "latency_ms": 0.207
     },
     {
       "id": "b01",
@@ -274,7 +274,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.088
+      "latency_ms": 0.092
     },
     {
       "id": "b02",
@@ -284,7 +284,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.088
+      "latency_ms": 0.087
     },
     {
       "id": "b03",
@@ -294,7 +294,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.105
+      "latency_ms": 0.103
     },
     {
       "id": "b04",
@@ -304,7 +304,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.237
+      "latency_ms": 0.238
     },
     {
       "id": "b05",
@@ -314,7 +314,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.226
+      "latency_ms": 0.2
     },
     {
       "id": "b06",
@@ -326,7 +326,7 @@
         "R7"
       ],
       "expected_matched": true,
-      "latency_ms": 0.142
+      "latency_ms": 0.133
     },
     {
       "id": "b07",
@@ -336,7 +336,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.15
+      "latency_ms": 0.168
     },
     {
       "id": "b08",
@@ -346,7 +346,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.252
+      "latency_ms": 0.256
     },
     {
       "id": "b09",
@@ -356,7 +356,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.096
+      "latency_ms": 0.105
     },
     {
       "id": "b10",
@@ -366,7 +366,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.072
+      "latency_ms": 0.08
     },
     {
       "id": "b11",
@@ -376,7 +376,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.141
+      "latency_ms": 0.143
     },
     {
       "id": "b12",
@@ -386,7 +386,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.173
+      "latency_ms": 0.098
     },
     {
       "id": "b13",
@@ -396,7 +396,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.111
+      "latency_ms": 0.108
     },
     {
       "id": "b14",
@@ -406,7 +406,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.093
+      "latency_ms": 0.205
     },
     {
       "id": "b15",
@@ -416,7 +416,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.092
+      "latency_ms": 0.119
     },
     {
       "id": "b16",
@@ -428,7 +428,7 @@
         "B26-FIRST-RECIPIENT"
       ],
       "expected_matched": true,
-      "latency_ms": 0.113
+      "latency_ms": 0.118
     },
     {
       "id": "b17",
@@ -438,7 +438,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.113
+      "latency_ms": 0.103
     },
     {
       "id": "b18",
@@ -450,7 +450,7 @@
         "B26-FIRST-RECIPIENT"
       ],
       "expected_matched": true,
-      "latency_ms": 0.304
+      "latency_ms": 0.29
     },
     {
       "id": "b19",
@@ -460,7 +460,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.089
+      "latency_ms": 0.084
     },
     {
       "id": "b20",
@@ -470,7 +470,7 @@
       "registry_hit": false,
       "fired": [],
       "expected_matched": true,
-      "latency_ms": 0.04
+      "latency_ms": 0.041
     },
     {
       "id": "m01",
@@ -482,7 +482,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.149
+      "latency_ms": 0.147
     },
     {
       "id": "m02",
@@ -494,7 +494,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.143
+      "latency_ms": 0.14
     },
     {
       "id": "m03",
@@ -518,7 +518,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.251
+      "latency_ms": 0.244
     },
     {
       "id": "m05",
@@ -530,7 +530,7 @@
         "R2"
       ],
       "expected_matched": true,
-      "latency_ms": 0.196
+      "latency_ms": 0.185
     },
     {
       "id": "m06",
@@ -543,7 +543,7 @@
         "R2"
       ],
       "expected_matched": true,
-      "latency_ms": 0.404
+      "latency_ms": 0.447
     },
     {
       "id": "m07",
@@ -555,7 +555,7 @@
         "R3"
       ],
       "expected_matched": true,
-      "latency_ms": 0.131
+      "latency_ms": 0.151
     },
     {
       "id": "m08",
@@ -567,7 +567,7 @@
         "R4"
       ],
       "expected_matched": true,
-      "latency_ms": 0.098
+      "latency_ms": 0.106
     },
     {
       "id": "m09",
@@ -579,7 +579,7 @@
         "R5"
       ],
       "expected_matched": true,
-      "latency_ms": 0.101
+      "latency_ms": 0.115
     },
     {
       "id": "m10",
@@ -591,7 +591,7 @@
         "R6"
       ],
       "expected_matched": true,
-      "latency_ms": 0.066
+      "latency_ms": 0.084
     },
     {
       "id": "m11",
@@ -603,7 +603,7 @@
         "R7"
       ],
       "expected_matched": true,
-      "latency_ms": 0.104
+      "latency_ms": 0.125
     },
     {
       "id": "m12",
@@ -616,7 +616,7 @@
         "R8"
       ],
       "expected_matched": true,
-      "latency_ms": 0.094
+      "latency_ms": 0.153
     },
     {
       "id": "m13",
@@ -631,7 +631,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.311
+      "latency_ms": 0.389
     },
     {
       "id": "m14",
@@ -644,7 +644,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.137
+      "latency_ms": 0.32
     },
     {
       "id": "m15",
@@ -657,7 +657,7 @@
         "P33-POISON"
       ],
       "expected_matched": true,
-      "latency_ms": 0.169
+      "latency_ms": 0.231
     },
     {
       "id": "m16",
@@ -669,7 +669,7 @@
         "R10"
       ],
       "expected_matched": true,
-      "latency_ms": 0.105
+      "latency_ms": 0.137
     },
     {
       "id": "m17",
@@ -683,7 +683,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.165
+      "latency_ms": 0.166
     },
     {
       "id": "m18",
@@ -697,7 +697,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.244
+      "latency_ms": 0.189
     },
     {
       "id": "m19",
@@ -709,7 +709,7 @@
         "R5"
       ],
       "expected_matched": true,
-      "latency_ms": 0.146
+      "latency_ms": 0.147
     },
     {
       "id": "m20",
@@ -722,7 +722,7 @@
         "R9"
       ],
       "expected_matched": true,
-      "latency_ms": 0.291
+      "latency_ms": 0.338
     },
     {
       "id": "p01",
@@ -734,7 +734,7 @@
         "R3"
       ],
       "expected_matched": true,
-      "latency_ms": 0.119
+      "latency_ms": 0.122
     },
     {
       "id": "p02",
@@ -746,7 +746,7 @@
         "R4"
       ],
       "expected_matched": true,
-      "latency_ms": 0.093
+      "latency_ms": 0.095
     },
     {
       "id": "p03",
@@ -758,7 +758,7 @@
         "R5"
       ],
       "expected_matched": true,
-      "latency_ms": 0.1
+      "latency_ms": 0.104
     },
     {
       "id": "p04",
@@ -770,7 +770,7 @@
         "R1"
       ],
       "expected_matched": true,
-      "latency_ms": 0.148
+      "latency_ms": 0.508
     },
     {
       "id": "p05",
@@ -783,7 +783,7 @@
         "P33-POISON"
       ],
       "expected_matched": true,
-      "latency_ms": 0.167
+      "latency_ms": 0.244
     }
   ]
 }

@@ -12,6 +12,8 @@ import datetime
 import json
 import os
 from dataclasses import asdict, dataclass, field
+import logging
+import secrets
 from typing import Dict, List, Optional
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -19,9 +21,29 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from api_agents.forensics.signer import generate_keypair, sign, verify
 
-# Deterministic default keypair for verifiable reproducible receipts
-DEFAULT_SEED = bytes.fromhex("11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff")
-_DEFAULT_SK, _DEFAULT_PK = generate_keypair(DEFAULT_SEED)
+SIGNING_SEED_ENV = "VERO_RECEIPT_SIGNING_SEED"
+SEED_BYTES = 32
+_logger = logging.getLogger(__name__)
+
+
+def _load_signing_seed() -> bytes:
+    """32-byte Ed25519 seed from VERO_RECEIPT_SIGNING_SEED (hex). Never hardcode it in source:
+    a public seed lets anyone forge "signed" receipts. Without the variable, a random per-process key
+    is used, so receipts verify against the public key they carry but change on restart."""
+    raw = os.environ.get(SIGNING_SEED_ENV, "").strip()
+    if not raw:
+        _logger.warning("%s not set; using an ephemeral receipt signing key", SIGNING_SEED_ENV)
+        return secrets.token_bytes(SEED_BYTES)
+    try:
+        seed = bytes.fromhex(raw.removeprefix("0x"))
+    except ValueError as exc:
+        raise ValueError(f"{SIGNING_SEED_ENV} must be {SEED_BYTES} bytes of hex") from exc
+    if len(seed) != SEED_BYTES:
+        raise ValueError(f"{SIGNING_SEED_ENV} must be {SEED_BYTES} bytes of hex, got {len(seed)}")
+    return seed
+
+
+_DEFAULT_SK, _DEFAULT_PK = generate_keypair(_load_signing_seed())
 
 
 @dataclass
