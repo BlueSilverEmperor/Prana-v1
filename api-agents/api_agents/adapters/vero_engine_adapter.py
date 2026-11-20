@@ -16,6 +16,7 @@ import logging
 import sys
 from collections import OrderedDict
 from pathlib import Path
+from dataclasses import replace
 from typing import Optional
 
 from pydantic import ValidationError
@@ -40,6 +41,7 @@ _ensure_engine_importable()
 from shared.api_schemas import SimulationRequest, SimulationResult, StateDiffSummary  # noqa: E402
 from simulator.constants import UNLIMITED_THRESHOLD  # noqa: E402
 from simulator.context import EngineContext  # noqa: E402
+from simulator.hexutil import normalize_address  # noqa: E402
 from simulator.engine import analyze_offline, simulate  # noqa: E402
 from simulator.renderer.plain_english_renderer import format_amount  # noqa: E402
 
@@ -76,6 +78,9 @@ FLAG_NAMES = {
 
 def to_engine_request(req: SimulateRequest) -> SimulationRequest:
     tx = {"to": req.to, "value": req.value, "data": req.data, "operation": req.operation}
+    if req.authorization_list:
+        tx["authorizationList"] = [{"chainId": a.chain_id, "address": a.address, "nonce": a.nonce}
+                                   for a in req.authorization_list]
     if req.gas_limit is not None:
         tx["gas"] = str(req.gas_limit)
     payload = {"chainId": req.chain_id, "safeAddress": req.safe_address, "transactions": [tx],
@@ -164,17 +169,27 @@ class VeroEngineAdapter:
         self._cache: OrderedDict[str, tuple[SimulationResult, bool]] = OrderedDict()
         self._cache_size = cache_size
 
-    async def _run(self, request: SimulationRequest) -> tuple[SimulationResult, bool]:
+    def _context_for(self, req: SimulateRequest) -> EngineContext:
+        """The server context plus this request's own address book and history, never shared across requests."""
+        if not req.contacts and not req.recipient_history:
+            return self._ctx
+        return replace(
+            self._ctx,
+            contacts=self._ctx.contacts | frozenset(normalize_address(a) for a in req.contacts),
+            recipient_history=self._ctx.recipient_history | frozenset(normalize_address(a) for a in req.recipient_history),
+        )
+
+    async def _run(self, request: SimulationRequest, ctx: EngineContext) -> tuple[SimulationResult, bool]:
         if not self._rpc_url:
-            return analyze_offline(request, self._ctx), False
+            return analyze_offline(request, ctx), False
         from simulator.tracer.anvil_fork_simulator import AnvilForkSimulator
 
         try:
             async with AnvilForkSimulator(self._rpc_url) as fork:
-                return await simulate(request, self._ctx, fork), False
+                return await simulate(request, ctx, fork), False
         except Exception as exc:  # noqa: BLE001 - any node failure degrades to static, flagged
             logger.exception("fork simulation failed (%s); using static analysis", exc)
-            return analyze_offline(request, self._ctx), True
+            return analyze_offline(request, ctx), True
 
     def _remember(self, key: str, value: tuple[SimulationResult, bool]) -> None:
         self._cache[key] = value
@@ -184,16 +199,17 @@ class VeroEngineAdapter:
 
     async def simulate_tx(self, req: SimulateRequest) -> RawSimulationResult:
         request = to_engine_request(req)
-        result, fork_failed = await self._run(request)
+        ctx = self._context_for(req)
+        result, fork_failed = await self._run(request, ctx)
         self._remember(req.model_dump_json(), (result, fork_failed))
         return RawSimulationResult(
             success=result.success, gas_used=int(result.metrics.gasUsed),
-            state_diffs=to_state_diffs(result.stateDiff, request.safeAddress, self._ctx),
+            state_diffs=to_state_diffs(result.stateDiff, request.safeAddress, ctx),
             raw_logs=[], revert_reason=result.revertReason or "",
         )
 
     def evaluate(self, sim: RawSimulationResult, req: SimulateRequest) -> RuleEvaluationResult:
         cached = self._cache.get(req.model_dump_json())
         if cached is None:
-            cached = (analyze_offline(to_engine_request(req), self._ctx), False)
+            cached = (analyze_offline(to_engine_request(req), self._context_for(req)), False)
         return to_verdict(*cached)

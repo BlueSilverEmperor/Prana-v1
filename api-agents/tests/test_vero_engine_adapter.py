@@ -56,6 +56,65 @@ def test_critical_attacks_are_blocked_with_named_flags(adapter, to, data, flag):
     assert verdict.human_warnings
 
 
+HOT_WALLET = "0x" + "4f" * 20
+POISONED = "0x4f4f" + "00" * 16 + "4f4f"  # same first and last bytes as the hot wallet
+
+
+def test_eip7702_delegation_in_authorization_list_is_blocked():
+    client = TestClient(app)
+    body = client.post("/v1/simulate", json={
+        "safe_address": SAFE, "to": HOT_WALLET, "data": "0x",
+        "authorization_list": [{"chain_id": 1, "address": EVIL, "nonce": 0}],
+    }).json()
+    assert body["decision"] == "BLOCK"
+    assert "EIP7702_DELEGATION" in body["flags"]
+
+
+def test_address_poisoning_against_contacts_is_blocked():
+    client = TestClient(app)
+    payload = {
+        "safe_address": SAFE, "to": USDT,
+        "data": cd("transfer(address,uint256)", ["address", "uint256"], [POISONED, 100_000_000]),
+        "declared_intent": {"allowed_recipients": [POISONED], "allowed_tokens": [USDT], "max_outflow_wei": "100000000"},
+        "contacts": [HOT_WALLET],
+    }
+    body = client.post("/v1/simulate", json=payload).json()
+    assert body["decision"] == "BLOCK"
+    assert "ADDRESS_POISONING" in body["flags"]
+
+
+def test_paying_the_real_contact_is_not_flagged_as_poisoning():
+    client = TestClient(app)
+    payload = {
+        "safe_address": SAFE, "to": USDT,
+        "data": cd("transfer(address,uint256)", ["address", "uint256"], [HOT_WALLET, 100_000_000]),
+        "declared_intent": {"allowed_recipients": [HOT_WALLET], "allowed_tokens": [USDT], "max_outflow_wei": "100000000"},
+        "contacts": [HOT_WALLET],
+    }
+    body = client.post("/v1/simulate", json=payload).json()
+    assert "ADDRESS_POISONING" not in body["flags"]
+    assert body["decision"] == "ALLOW"
+
+
+def test_request_context_does_not_leak_between_requests():
+    client = TestClient(app)
+    poison = {
+        "safe_address": SAFE, "to": USDT,
+        "data": cd("transfer(address,uint256)", ["address", "uint256"], [POISONED, 1]),
+    }
+    client.post("/v1/simulate", json={**poison, "contacts": [HOT_WALLET]})
+    body = client.post("/v1/simulate", json=poison).json()  # same tx, no contacts this time
+    assert "ADDRESS_POISONING" not in body["flags"]
+
+
+def test_context_lists_are_bounded():
+    client = TestClient(app)
+    res = client.post("/v1/simulate", json={
+        "safe_address": SAFE, "to": HOT_WALLET, "contacts": ["0x" + f"{i:040x}" for i in range(1001)],
+    })
+    assert res.status_code == 422
+
+
 def test_plain_transfer_without_declaration_is_allowed(adapter):
     req = SimulateRequest(safe_address=SAFE, to=USDT, data=cd("transfer(address,uint256)",
                                                               ["address", "uint256"], [ALICE, 10]))

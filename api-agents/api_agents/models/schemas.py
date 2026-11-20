@@ -24,6 +24,9 @@ class StateDiff(BaseModel):
 
 UINT256_LIMIT = 2**256
 UINT64_LIMIT = 2**64
+MAX_CONTEXT_ADDRESSES = 1000
+MAX_AUTHORIZATIONS = 16
+ADDRESS_PATTERN = r"^0x[0-9a-fA-F]{40}$"
 
 
 class SimulateRequest(BaseModel):
@@ -54,6 +57,33 @@ class SimulateRequest(BaseModel):
         None, description="What the signer declared; enables undeclared-recipient and outflow-cap checks"
     )
     label: Optional[str] = Field(None, max_length=280, description="What the signing UI claimed the tx does")
+    authorization_list: Optional[List["Authorization7702"]] = Field(
+        None, max_length=MAX_AUTHORIZATIONS,
+        description="EIP-7702 authorisations attached to a type-4 transaction (each one delegates the account's code)"
+    )
+    contacts: List[str] = Field(
+        default_factory=list, max_length=MAX_CONTEXT_ADDRESSES,
+        description="The signer's address book; recipients that merely look like a contact are flagged as poisoning"
+    )
+    recipient_history: List[str] = Field(
+        default_factory=list, max_length=MAX_CONTEXT_ADDRESSES,
+        description="Addresses this Safe has paid before; a first-time recipient is flagged"
+    )
+
+    @field_validator("contacts", "recipient_history")
+    @classmethod
+    def _addresses(cls, v: List[str]) -> List[str]:
+        import re
+        bad = [a for a in v if not re.fullmatch(ADDRESS_PATTERN, a)]
+        if bad:
+            raise ValueError(f"not a 20-byte hex address: {bad[0][:48]}")
+        return v
+
+
+class Authorization7702(BaseModel):
+    chain_id: int = Field(..., ge=0, lt=UINT64_LIMIT)
+    address: str = Field(..., pattern=ADDRESS_PATTERN, description="Contract the account delegates its code to")
+    nonce: int = Field(0, ge=0, lt=UINT64_LIMIT)
 
 
 class DeclaredIntent(BaseModel):
