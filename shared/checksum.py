@@ -58,19 +58,42 @@ def compute_4_word_checksum(
     policy_hash: str
 ) -> Tuple[List[str], List[int]]:
     """
-    Computes 4 BIP-39 words from keccak256(vault, nonce, safe_tx_hash, policy_hash).
+    Computes 4 BIP-39 words matching VeroGuard.sol computeChecksumWordIndices:
+    digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash))
+    indices[0] = uint16(uint256(digest) & 0x7FF)
+    indices[1] = uint16((uint256(digest) >> 11) & 0x7FF)
+    indices[2] = uint16((uint256(digest) >> 22) & 0x7FF)
+    indices[3] = uint16((uint256(digest) >> 33) & 0x7FF)
     Returns (words, indices).
     """
     try:
+        import eth_abi
         from Crypto.Hash import keccak
+        from eth_utils import to_checksum_address
+
+        clean_vault = to_checksum_address(vault)
+        tx_hex = safe_tx_hash[2:] if safe_tx_hash.startswith("0x") else safe_tx_hash
+        pol_hex = policy_hash[2:] if policy_hash.startswith("0x") else policy_hash
+        tx_bytes = bytes.fromhex(tx_hex.rjust(64, "0"))
+        pol_bytes = bytes.fromhex(pol_hex.rjust(64, "0"))
+
+        encoded = eth_abi.encode(
+            ["address", "uint256", "bytes32", "bytes32"],
+            [clean_vault, nonce, tx_bytes, pol_bytes]
+        )
         k = keccak.new(digest_bits=256)
-        payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
-        k.update(payload)
+        k.update(encoded)
         digest = k.digest()
     except Exception:
-        # Fallback to sha256
-        payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
-        digest = hashlib.sha256(payload).digest()
+        try:
+            from Crypto.Hash import keccak
+            k = keccak.new(digest_bits=256)
+            payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
+            k.update(payload)
+            digest = k.digest()
+        except Exception:
+            payload = f"{vault.lower()}:{nonce}:{safe_tx_hash.lower()}:{policy_hash.lower()}".encode()
+            digest = hashlib.sha256(payload).digest()
 
     val = int.from_bytes(digest, byteorder="big")
     indices = [
@@ -79,5 +102,12 @@ def compute_4_word_checksum(
         (val >> 22) & 0x7FF,
         (val >> 33) & 0x7FF,
     ]
-    words = [_get_bip39_word(i) for i in indices]
+
+    try:
+        from mnemonic import Mnemonic
+        wordlist = Mnemonic("english").wordlist
+        words = [wordlist[i] for i in indices]
+    except Exception:
+        words = [_get_bip39_word(i) for i in indices]
+
     return words, indices
