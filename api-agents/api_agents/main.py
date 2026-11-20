@@ -32,16 +32,29 @@ app.add_middleware(
 app.include_router(firewall_router)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-web_dir = os.path.join(REPO_ROOT, "web")          # legacy demo HUD
-frontend_dir = os.path.join(REPO_ROOT, "frontend")  # landing page + live check
+web_dir = os.path.join(REPO_ROOT, "web")              # legacy demo HUD
+frontend_dir = os.path.join(REPO_ROOT, "frontend")      # new landing page + attack replay
+cockpit_file = os.path.join(REPO_ROOT, "demo_cockpit.html")
 
 
 @app.get("/hud")
+@app.get("/vault")
+@app.get("/dashboard")
 async def legacy_hud():
     index_file = os.path.join(web_dir, "index.html")
     if os.path.exists(index_file):
         return FileResponse(index_file)
-    return {"message": "Legacy HUD not found."}
+    return {"message": "Multisig Vault HUD not found."}
+
+
+@app.get("/cockpit")
+@app.get("/simulator")
+async def cockpit_endpoint():
+    if os.path.exists(cockpit_file):
+        return FileResponse(cockpit_file)
+    return FileResponse(os.path.join(web_dir, "index.html"))
+
+
 
 
 class BytecodeScanRequest(BaseModel):
