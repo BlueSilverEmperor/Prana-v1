@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vero · Sign only what you meant</title>
+<meta name="description" content="Vero simulates every transaction before anyone signs, explains the real effect in plain words, and reverts anything beyond what was declared.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23060607'/><path d='M16 6l8.5 4.75v9.5L16 25l-8.5-4.75v-9.5z' fill='none' stroke='%23ff1f3a' stroke-width='2.2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Fira+Code:wght@400;500&family=Fira+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scrollcraft.css">
+<link rel="stylesheet" href="landing.css?v=5">
+</head>
+<body>
+<span data-sc-progress></span>
+<div class="sc-grain" aria-hidden="true"></div>
+
+<!-- The divider is the page's only chrome: both side labels, a chain of blocks mined as you read, and the one action. -->
+<aside class="spine" data-spine aria-label="Vero">
+  <div class="spine__cap">
+    <span class="spine__label spine__label--l">What you see</span>
+    <a class="spine__mark" href="#top" aria-label="Vero, back to top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20.5 7.25v9.5L12 21.5 3.5 16.75v-9.5z"/></svg></a>
+    <span class="spine__label spine__label--r">What runs</span>
+  </div>
+  <div class="spine__track" aria-hidden="true"><i class="spine__pulse"></i></div>
+  <div class="chain" data-chain>
+    <ol class="chain__blocks" aria-label="Blocks mined while you read">
+      <li class="block" data-block="0"><b>#0</b><span>genesis</span><code data-hash>········</code></li>
+      <li class="block" data-block="1"><b>#1</b><span>calldata</span><code data-hash>········</code></li>
+      <li class="block" data-block="2"><b>#2</b><span>history</span><code data-hash>········</code></li>
+      <li class="block" data-block="3"><b>#3</b><span>verdict</span><code data-hash>········</code></li>
+      <li class="block" data-block="4"><b>#4</b><span>proof</span><code data-hash>········</code></li>
+    </ol>
+    <div class="intruder" data-intruder aria-hidden="true"><b>tx</b><span>refused</span><code data-intruder-hash>········</code></div>
+  </div>
+  <a class="spine__cta" href="console.html">Open the console</a>
+</aside>
+
+<main id="top">
+
+  <!-- 1 · NAME: flow + parallax. Wordmark at the back, claims in the middle, the chain in front. -->
+  <section class="act" data-sc-act="flow" data-act="0">
+    <div class="split split--hero">
+      <h1 class="wordmark" aria-label="Vero">
+        <span class="wordmark__half wordmark__half--l" data-sc-parallax="-1.1" aria-hidden="true">Ve</span>
+        <span class="wordmark__half wordmark__half--r" data-sc-parallax="-1.1" aria-hidden="true">ro</span>
+      </h1>
+      <div class="side side--l" data-label="What you see">
+        <p class="claim">You approve a swap.</p>
+        <p class="sc-body">The screen says 1.2 ETH for USDC. Three of five signers agree.</p>
+      </div>
+      <div class="side side--r" data-label="What runs">
+        <p class="claim claim--hot">The bytes hand over the wallet.</p>
+        <p class="sc-body">Vero runs the exact transaction before anyone signs and says, in plain words, what it really does.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · TWO READINGS: pin + kinetic. The card holds, the bytes decode under the reader's scroll. -->
+  <section class="act" data-sc-act="pin" data-sc-span="2" data-act="1" data-readings>
+    <div data-sc-stage>
+      <div class="split">
+        <div class="side side--l" data-label="What you see">
+          <h2 class="sc-display sc-display--md" data-sc-cue="0 1 0 0">Same transaction.</h2>
+          <figure class="wallet" data-sc-cue="0 1 0 0">
+            <figcaption>Treasury multisig · 3 of 5</figcaption>
+            <p class="wallet__verb">Swap</p>
+            <p class="wallet__amt">1.2 ETH <span aria-hidden="true">→</span> USDC</p>
+            <dl class="wallet__meta"><dt>Network</dt><dd>Ethereum</dd><dt>Fee</dt><dd>Normal</dd></dl>
+            <span class="wallet__btn">Confirm</span>
+            <p class="wallet__note">Illustration of a signing screen</p>
+          </figure>
+        </div>
+        <div class="side side--r" data-label="What runs">
+          <h2 class="sc-display sc-display--md" data-sc-cue="0 1 0 0" data-sc-kinetic="lines">Two readings.</h2>
+          <p class="bytes" aria-label="The transaction's calldata"><span class="bytes__on" data-bytes-on></span><span class="bytes__off" data-bytes-off></span></p>
+          <ol class="decode">
+            <li data-sc-cue="0.16 1 0.1 0">Selector <code>0x3659cfe6</code> is <code>upgradeTo(address)</code>.</li>
+            <li data-sc-cue="0.28 1 0.1 0">The new logic lives at <code>0xbaba…baba</code>.</li>
+            <li class="decode__hot" data-sc-cue="0.4 1 0.1 0">Every future call runs that code. The wallet changes hands.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · IT HAPPENED: flow + count. Real, public figures only. -->
+  <section class="act act--flow" data-sc-act="flow" data-act="2">
+    <div class="split">
+      <div class="side side--l" data-label="What signers saw">
+        <div class="incident" data-sc-in data-sc-stagger="90">
+          <p class="incident__when">July 2024 · WazirX</p>
+          <p class="incident__sum">about $<span data-sc-count="0 230" data-sc-count-at="0.15 0.45">230</span>M</p>
+          <p class="sc-body">A routine transfer on the signing screen.</p>
+        </div>
+        <div class="incident" data-sc-in data-sc-stagger="90">
+          <p class="incident__when">February 2025 · Bybit</p>
+          <p class="incident__sum">about $<span data-sc-count="0 1.5" data-sc-count-at="0.25 0.55">1.5</span>B</p>
+          <p class="sc-body">A normal move from cold storage on the signing screen.</p>
+        </div>
+      </div>
+      <div class="side side--r" data-label="What ran" data-sc-in data-sc-stagger="90">
+        <h2 class="sc-display sc-display--md">The keys were never stolen.</h2>
+        <p class="sc-body">In both cases the bytes replaced the multisig's own logic. The signers approved exactly what they were shown. What was forged was the meaning.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · VERO READS FIRST (peak): pin, longest span. The live verdict, and the chain refusing the transaction's block. -->
+  <section class="act" data-sc-act="pin" data-sc-span="2.8" data-act="3" data-peak>
+    <div data-sc-stage>
+      <div class="split">
+        <div class="side side--l" data-label="Without Vero">
+          <h2 class="sc-display sc-display--md" data-sc-cue="0 1 0 0">Three signatures later</h2>
+          <ol class="signers">
+            <li data-sc-cue="0.03 1 0.1 0">Signer 1 approves.</li>
+            <li data-sc-cue="0.09 1 0.1 0">Signer 2 approves.</li>
+            <li data-sc-cue="0.15 1 0.1 0">Signer 3 approves. Threshold met.</li>
+            <li class="signers__end" data-sc-cue="0.48 1 0.1 0">Executed. The logic is replaced, and the funds follow it out.</li>
+          </ol>
+        </div>
+        <div class="side side--r" data-label="With Vero">
+          <h2 class="sc-display sc-display--md" data-sc-cue="0 1 0 0" data-sc-kinetic="lines">Vero reads it first.</h2>
+          <ol class="steps">
+            <li data-sc-cue="0.05 1 0.1 0">Runs the exact bytes on a fork of the chain.</li>
+            <li data-sc-cue="0.12 1 0.1 0">Declared: a swap. Real effect: the logic is replaced.</li>
+          </ol>
+          <output class="verdict" data-verdict data-sc-cue="0.2 1 0.1 0" aria-live="polite">
+            <span class="verdict__tag" data-v-tag>Checking</span>
+            <span class="verdict__risk"><b data-v-risk>–</b> / 100 risk</span>
+            <span class="verdict__why" data-v-why>Simulating…</span>
+            <span class="verdict__words">Words to read back on a second device <b data-v-words>…</b></span>
+            <span class="verdict__src" data-v-src>Asking the Vero engine</span>
+          </output>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · WHY IT HOLDS: flow + reveal + count. The real benchmark, with its interval. -->
+  <section class="act act--flow" data-sc-act="flow" data-act="4">
+    <div class="split">
+      <div class="side side--l" data-label="Other checks">
+        <h2 class="sc-display sc-display--md">Other ways to check</h2>
+        <figure class="ledger" data-sc-reveal="left" data-sc-reveal-at="0.12 0.42">
+          <div class="ledger__row"><span>Plain wallet</span><b>0 / 30</b><small>caught</small></div>
+          <div class="ledger__row"><span>Static blocklist</span><b>3 / 30</b><small>caught</small></div>
+          <div class="ledger__row"><span>Warnings only</span><b>0 / 30</b><small>stopped, though all 30 were flagged</small></div>
+        </figure>
+      </div>
+      <div class="side side--r" data-label="Vero">
+        <h2 class="sc-display sc-display--md">Vero, same 55 scenarios</h2>
+        <figure class="ledger ledger--vero" data-sc-reveal="right" data-sc-reveal-at="0.18 0.48">
+          <div class="ledger__row"><span>Attacks caught and stopped</span><b><span data-sc-count="0 30" data-sc-count-at="0.22 0.5">30</span> / 30</b><small>95% interval 88.6 to 100%</small></div>
+          <div class="ledger__row"><span>Safe transactions blocked</span><b>0 / 25</b><small>95% interval 0 to 13.3%</small></div>
+          <div class="ledger__row"><span>Exploit replays reverted on-chain</span><b><span data-sc-count="0 13" data-sc-count-at="0.26 0.54">13</span></b><small>Foundry, with 4 fuzzed invariants</small></div>
+        </figure>
+        <p class="fine">Scenarios are written by the team; an outside held-out set is still to come. No AI decides a verdict: rules R1 to R12 are deterministic.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · RESOLVE: pin + collapse. The divider travels to the edge and the truthful side takes the page. -->
+  <section class="act act--close" data-sc-act="pin" data-sc-span="1.3" data-act="5" data-close id="open">
+    <div data-sc-stage>
+      <div class="close">
+        <div class="close__lose" data-close-lose aria-hidden="true">
+          <p class="close__ghost">Confirm</p>
+        </div>
+        <div class="close__win" data-close-win><div class="close__inner" data-close-inner>
+          <p class="close__word" aria-hidden="true">Vero</p>
+          <h2 class="sc-display sc-display--lg" data-sc-cue="0.2">Sign only what you meant.</h2>
+          <p class="sc-body" data-sc-cue="0.28">Vero is Italian for true. It simulates every transaction before anyone signs, explains the real effect in plain words, and its on-chain guard reverts anything beyond what was declared.</p>
+          <div class="close__actions" data-sc-cue="0.2">
+            <a class="cta" href="console.html">Open the console</a>
+            <a class="cta-quiet" href="attack.html?autoplay">Watch it stop live attacks</a>
+            <a class="cta-quiet" href="/docs">API reference</a>
+          </div>
+          <footer class="foot">
+            <span>Vero · The Big Hack 2.0 · Track 02, problem B1</span>
+            <a href="https://github.com/BlueSilverEmperor/Prana-v1" rel="noopener">Source</a>
+          </footer>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="scrollcraft.js"></script>
+<script>ScrollCraft.mount(document.body);</script>
+<script src="landing.js?v=3"></script>
+</body>
+</html>
