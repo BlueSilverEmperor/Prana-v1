@@ -5,7 +5,7 @@ Integration tests for Quai Network routes, X-Vero-Engine header, Hashference x40
 import unittest
 from fastapi.testclient import TestClient
 from api_agents.main import app
-from api_agents.agents.hashference_client import solve_x402_pow_challenge, get_hashference_telemetry
+from api_agents.agents.hashference_client import get_hashference_telemetry, solve_payment_required
 from api_agents.agents.nl_intent_compiler import compile_nl_to_intent_policy
 
 
@@ -96,8 +96,7 @@ class TestQuaiRoutes(unittest.TestCase):
         self.assertIn("quai-workshare-v1", job_header)
 
         # 2. Extract job id and solve Proof-of-Work
-        job_id = job_header.split("job=")[1].split()[0]
-        pow_sig = solve_x402_pow_challenge(job_id, difficulty=1)
+        pow_sig = solve_payment_required(job_header)
 
         # 3. Request with valid PAYMENT-SIGNATURE succeeds
         res_paid = self.client.post(

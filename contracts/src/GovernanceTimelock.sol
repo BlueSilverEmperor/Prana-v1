@@ -8,7 +8,8 @@ interface IGuardedVault {
 /**
  * @title GovernanceTimelock
  * @notice 24-hour timelock enforcing delays on critical governance and control actions.
- * Supports single-signer veto: any verified multisig owner can veto a pending proposal immediately.
+ * Only approved proposers may queue. A pending proposal can be vetoed by its proposer, by any approved
+ * proposer (guardian), or, when the target is a vault, by any of that vault's owners (single-signer veto).
  */
 contract GovernanceTimelock {
     uint256 public constant DELAY = 1 days;
@@ -26,6 +27,8 @@ contract GovernanceTimelock {
 
     mapping(bytes32 => Proposal) public proposals;
     uint256 public proposalNonce;
+    address public admin;
+    mapping(address => bool) public isProposer;
 
     event TransactionQueued(
         bytes32 indexed proposalId,
@@ -36,22 +39,50 @@ contract GovernanceTimelock {
     );
     event TransactionExecuted(bytes32 indexed proposalId, address indexed target);
     event TransactionVetoed(bytes32 indexed proposalId, address indexed vetoer);
+    event ProposerUpdated(address indexed account, bool approved);
+    event AdminTransferred(address indexed previousAdmin, address indexed newAdmin);
 
     error ProposalNotReady(bytes32 proposalId, uint256 eta);
     error ProposalAlreadyVetoed(bytes32 proposalId);
     error ProposalAlreadyExecuted(bytes32 proposalId);
     error ProposalDoesNotExist(bytes32 proposalId);
     error UnauthorizedVeto(address caller);
+    error UnauthorizedProposer(address caller);
     error ExecutionFailed(bytes data);
 
+    constructor() {
+        admin = msg.sender;
+        isProposer[msg.sender] = true;
+        emit AdminTransferred(address(0), msg.sender);
+        emit ProposerUpdated(msg.sender, true);
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != admin) revert UnauthorizedProposer(msg.sender);
+        _;
+    }
+
+    function setProposer(address account, bool approved) external onlyAdmin {
+        isProposer[account] = approved;
+        emit ProposerUpdated(account, approved);
+    }
+
+    /// @notice Hand admin to a multisig (or to this timelock itself) once deployment is done.
+    function transferAdmin(address newAdmin) external onlyAdmin {
+        require(newAdmin != address(0), "Invalid admin");
+        emit AdminTransferred(admin, newAdmin);
+        admin = newAdmin;
+    }
+
     /**
-     * @notice Queue a critical governance action for 24 hours.
+     * @notice Queue a critical governance action for 24 hours. Approved proposers only.
      */
     function queueTransaction(
         address target,
         uint256 value,
         bytes calldata data
     ) external returns (bytes32 proposalId) {
+        if (!isProposer[msg.sender]) revert UnauthorizedProposer(msg.sender);
         require(target != address(0), "Invalid target");
         uint256 eta = block.timestamp + DELAY;
         proposalId = keccak256(abi.encode(target, value, data, eta, block.chainid, ++proposalNonce));
@@ -79,13 +110,14 @@ contract GovernanceTimelock {
         if (p.vetoed) revert ProposalAlreadyVetoed(proposalId);
         if (p.executed) revert ProposalAlreadyExecuted(proposalId);
 
-        // Verify caller is an owner of the target vault or proposer
-        bool isAuthorized = (msg.sender == p.proposer);
-        if (!isAuthorized) {
+        // Proposer, approved guardian, or an owner of the target vault. A target without isOwner()
+        // (a guard, an adapter) grants nobody else a veto: the old fallback let anyone veto anything.
+        bool isAuthorized = msg.sender == p.proposer || isProposer[msg.sender];
+        if (!isAuthorized && p.target.code.length > 0) {
             try IGuardedVault(p.target).isOwner(msg.sender) returns (bool ownerCheck) {
                 isAuthorized = ownerCheck;
             } catch {
-                isAuthorized = true; // Fallback if target does not implement isOwner
+                isAuthorized = false;
             }
         }
 

@@ -136,6 +136,8 @@ forge test -vvv
   ```bash
   cd contracts
   forge script script/DeployQuai.s.sol
-  # Or via Node.js + quais SDK:
-  node deploy_quai.mjs
+  # Or via Node.js + quais SDK (needs QUAI_PRIVATE_KEY, the constructor addresses and `forge build`;
+  # mainnet also needs QUAI_CONFIRM_MAINNET=yes). Validate first with --dry-run:
+  node deploy_quai.mjs --dry-run
   ```
+  Off a local Anvil chain (31337) both Forge scripts require `PRIVATE_KEY`; there is no default key.

@@ -120,6 +120,34 @@ def test_factory_mock_on_request(monkeypatch):
     assert isinstance(build_adapter(), MockAdapter)
 
 
+def _break_real_engine(monkeypatch):
+    import api_agents.adapters.vero_engine_adapter as engine_module
+
+    def explode(*_args, **_kwargs):
+        raise RuntimeError("engine failed to start")
+
+    monkeypatch.setattr(engine_module, "VeroEngineAdapter", explode)
+
+
+def test_factory_fails_closed_when_real_engine_cannot_start(monkeypatch):
+    monkeypatch.delenv("VERO_ENGINE", raising=False)
+    monkeypatch.delenv("VERO_ALLOW_MOCK_FALLBACK", raising=False)
+    _break_real_engine(monkeypatch)
+    with pytest.raises(RuntimeError, match="engine failed to start"):
+        build_adapter()
+
+
+def test_factory_mock_fallback_only_when_explicitly_allowed(monkeypatch, caplog):
+    from api_agents.adapters.mock_adapter import MockAdapter
+    monkeypatch.delenv("VERO_ENGINE", raising=False)
+    monkeypatch.setenv("VERO_ALLOW_MOCK_FALLBACK", "1")
+    _break_real_engine(monkeypatch)
+    with caplog.at_level("ERROR"):
+        adapter = build_adapter()
+    assert isinstance(adapter, MockAdapter)
+    assert "MOCK" in caplog.text
+
+
 def test_api_blocks_module_attack_that_mock_allowed():
     client = TestClient(app)
     body = client.post("/v1/simulate", json={

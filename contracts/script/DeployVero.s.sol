@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
+import "./DeployerKey.sol";
 import "../src/ThreatRegistry.sol";
 import "../src/GovernanceTimelock.sol";
 import "../src/VeroGuard.sol";
@@ -10,9 +11,9 @@ import "../src/mocks/MockUSDT.sol";
 import "../src/mocks/MockWBTC.sol";
 import "../src/mocks/MultiSend.sol";
 
-contract DeployVero is Script {
+contract DeployVero is DeployerKey {
     function run() external {
-        uint256 deployerPrivateKey = vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+        uint256 deployerPrivateKey = _deployerKey();
         address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);

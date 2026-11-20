@@ -19,6 +19,7 @@ from api_agents.adapters.mock_adapter import SIG_TRANSFER
 from api_agents.adapters.simulator_protocol import RuleEngineProtocol, SimulatorProtocol
 from api_agents.adapters.errors import EngineInputError
 from api_agents.forensics.cert_in_exporter import create_forensic_receipt
+from api_agents.payments import work_gate
 from api_agents.models.schemas import (
     AuditReceipt,
     DecisionEnum,
@@ -106,11 +107,11 @@ async def simulate_transaction(
         x_quai_work_gate and x_quai_work_gate.lower() == "true"
     )
     if is_quai and work_gate_active:
-        if not payment_signature or "nonce=" not in payment_signature:
-            job_id = f"job-{int(time.time()*1000)}"
+        if not work_gate.redeem(payment_signature):
+            job_id = work_gate.issue_job()
             payout = os.getenv("QUAI_PAYOUT_ADDRESS", "0x0017a140Aa3E981100a9becA4E685f962f0cF6C9")
             headers = {
-                "PAYMENT-REQUIRED": f"quai-workshare-v1 job={job_id} difficulty=1 payout={payout}",
+                "PAYMENT-REQUIRED": f"quai-workshare-v1 job={job_id} difficulty={work_gate.DIFFICULTY} payout={payout}",
                 "PAYMENT-PAYOUT-ADDRESS": payout,
             }
             return Response(

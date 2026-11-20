@@ -376,7 +376,7 @@ This prevents cross-shard replay attacks: a transaction approved for Cyprus-1 ca
 Located in `contracts/src/QuaiVeroAdapter.sol`, inherits `VeroGuard.sol` without modifying `VeroGuard`'s deployed ABI:
 - **Zone Coordinate Binding (`allowedZoneHash`):** Reverts with `CrossShardReplayBlocked(bytes32,bytes32)` if executed outside the bound zone.
 - **Dual-Ledger Asset Snapshotting:** Snapshots `$QUAI` native balance (18 decimals) and `$QI` energy-dollar token balance (6 decimals), reverting with `QuaiSpendCapExceeded` or `QiSpendCapExceeded` if post-execution outflows exceed declared caps.
-- **24-Hour Rolling Qi AI Agent Velocity Cap:** Tracks cumulative `$QI` outflows via `recordQiVelocitySpend()` and enforces `qiVelocityCap` to prevent autonomous bot balance draining.
+- **24-Hour Qi AI Agent Velocity Cap:** The guard post-check (`checkAfterExecution`) measures each transaction's real `$QI` outflow and charges it to a per-vault `qiDailyCap` that only the timelock can raise (fixed 24h window; no cap means no `$QI` spending).
 - **Deployment:** `contracts/script/DeployQuai.s.sol` and `contracts/deploy_quai.mjs` deploy and configure the adapter using `quais` JsonRpcProvider with deterministic offline simulation fallback.
 
 ### E. Simulator Quai RPC Adapter & Shard-Prefix Poisoning Shield

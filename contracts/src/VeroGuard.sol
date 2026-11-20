@@ -125,7 +125,7 @@ contract VeroGuard is EIP712 {
         threatRegistry = ThreatRegistry(_threatRegistry);
     }
 
-    function setGovernanceTimelock(address _governanceTimelock) external {
+    function setGovernanceTimelock(address _governanceTimelock) external virtual {
         require(msg.sender == governanceTimelock || msg.sender == admin, "Unauthorized");
         governanceTimelock = _governanceTimelock;
     }
@@ -315,7 +315,7 @@ contract VeroGuard is EIP712 {
         uint256 vaultNonce,
         address msgSender,
         IntentPolicy memory policy
-    ) external view {
+    ) public view virtual {
         if (isPaused()) revert GuardPaused();
         if (deadMansSwitchActive[policy.vault]) revert DeadMansSwitchActive(policy.vault);
 
@@ -515,7 +515,7 @@ contract VeroGuard is EIP712 {
         bool success,
         IntentPolicy memory policy,
         VaultSnapshot memory preSnap
-    ) external view {
+    ) public virtual {
         if (!success) revert ExecutionFailed();
 
         // 1. Check ETH outflow
