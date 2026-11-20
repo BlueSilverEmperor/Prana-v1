@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from api_agents.adapters.factory import engine_name
 from api_agents.routes.firewall_api import get_adapter, router as firewall_router
@@ -30,16 +31,17 @@ app.add_middleware(
 
 app.include_router(firewall_router)
 
-# Mount web directory if available
-web_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "web"))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+web_dir = os.path.join(REPO_ROOT, "web")          # legacy demo HUD
+frontend_dir = os.path.join(REPO_ROOT, "frontend")  # landing page + live check
 
 
-@app.get("/")
-async def root():
+@app.get("/hud")
+async def legacy_hud():
     index_file = os.path.join(web_dir, "index.html")
     if os.path.exists(index_file):
         return FileResponse(index_file)
-    return {"message": "Project Vero Firewall API is running. Visit /docs for Swagger."}
+    return {"message": "Legacy HUD not found."}
 
 
 class BytecodeScanRequest(BaseModel):
@@ -137,3 +139,8 @@ async def mobile_verifier(words: Optional[str] = Query(None, max_length=120),
       Safe Tx Hash: <span class="text-slate-200 break-all">{html.escape(tx)}</span>
     </div>"""
     return HTMLResponse(_VERIFY_PAGE.format(body=body, subsystem_badge=subsystem_badge))
+
+
+# Mounted last so every API route above wins; "/" serves the landing page and its assets.
+if os.path.isdir(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
