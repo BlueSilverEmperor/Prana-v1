@@ -40,19 +40,20 @@ def cmd_status(args):
 def cmd_simulate(args):
     """Simulate a transaction against the Vero Firewall."""
     import asyncio
-    from api_agents.adapters.mock_adapter import MockAdapter
+    from api_agents.adapters.factory import build_adapter, engine_name
     from api_agents.models.schemas import SimulateRequest
     from api_agents.utils.four_word_checksum import compute_four_word_checksum
     from api_agents.routes.firewall_api import _compute_raw_tx_hash
 
-    adapter = MockAdapter()
+    adapter = build_adapter()  # real Vero engine unless VERO_ENGINE=mock
     req = SimulateRequest(
         chain_id=args.chain_id,
         safe_address=args.safe,
         to=args.to,
         value=args.value,
         data=args.data,
-        nonce=args.nonce
+        nonce=args.nonce,
+        operation=getattr(args, "operation", 0),
     )
 
     t0 = time.perf_counter()
@@ -70,6 +71,7 @@ def cmd_simulate(args):
     print("=" * 60)
     decision = eval_res.decision.value if hasattr(eval_res.decision, "value") else str(eval_res.decision)
     decision_icon = "✅" if decision == "ALLOW" else ("⚠️" if decision == "WARN" else "🛑")
+    print(f" Engine           : {engine_name(adapter)}")
     print(f" Decision         : {decision_icon} {decision}")
     print(f" Risk Score       : {eval_res.risk_score}/100")
     print(f" 4-Word Checksum  : 🔑 {checksum}")
@@ -90,7 +92,7 @@ def cmd_simulate(args):
     if sim.state_diffs:
         print("\n State Diffs      :")
         for d in sim.state_diffs:
-            print(f"   • {d.asset_type}: {d.delta_human} (from {d.from_address[:10]}... to {d.to_address[:10]}...)")
+            print(f"   • {d.asset_type}: {d.delta_human} (from {d.from_address[:10]}... to {(d.to_address or '-')[:10]}...)")
     else:
         print("\n State Diffs      : None (0 balance mutations)")
     print("=" * 60 + "\n")
@@ -150,7 +152,7 @@ def cmd_bench(args):
     """Run the 55-scenario exploit evaluation benchmark."""
     print("\n[CLI] Running 55-scenario attack harness (WazirX, Bybit, Permit2, MultiSend)...")
     import simulator.bench.run_eval as eval_module
-    eval_module.main()
+    eval_module.main([])  # empty argv: do not re-parse the CLI's own arguments
 
 def cmd_latency(args):
     """Run latency SLA benchmark."""
@@ -190,8 +192,11 @@ def cmd_interactive(args):
                 safe="0x1d1499e622D69689cdf9004d05Ec547d650Ff211",
                 to="0x3D7Ebc40AF7092E3F1C81F2e996cbA5Cae2090d7",
                 value="0",
-                data="0x9e5faafc",
-                nonce=0
+                # Bybit-style payload: transfer(newSingleton, 0) executed by DELEGATECALL
+                data="0xa9059cbb000000000000000000000000babababababababababababababababababababa"
+                     "0000000000000000000000000000000000000000000000000000000000000000",
+                nonce=0,
+                operation=1,
             )
             cmd_simulate(parser)
         elif choice == "3":
@@ -239,6 +244,7 @@ def main():
     p_sim.add_argument("--data", default="0x", help="Calldata hex")
     p_sim.add_argument("--chain-id", type=int, default=1)
     p_sim.add_argument("--nonce", type=int, default=0)
+    p_sim.add_argument("--operation", type=int, choices=[0, 1], default=0, help="0 CALL, 1 DELEGATECALL")
 
     # checksum
     p_chk = subparsers.add_parser("checksum", help="Compute 4-word dual-device checksum")

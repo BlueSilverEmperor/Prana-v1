@@ -6,9 +6,9 @@
 
 ## 1. Executive Summary & Problem Recap
 
-In July 2024, Indian crypto exchange **WazirX lost $230 million** through its multisig wallet. In February 2025, Bybit experienced a similar $1.4B attempt.
-* **The Vulnerability:** The attack was **not** a private key theft. Attackers compromised the client-side user interface (Liminal/web UI).
-* **The Mechanism:** The screen showed a routine internal transfer to signers. However, the underlying calldata contained an unauthorized contract upgrade (`upgradeTo`) targeting the EIP-1967 implementation slot (`0x3608...`).
+In July 2024, Indian crypto exchange **WazirX lost about $230 million** from its multisig wallet. In February 2025, **Bybit lost about $1.5 billion** in a similar attack.
+* **The Vulnerability:** In both cases signers approved transactions whose displayed meaning differed from their real effect; the signing interface, not the private keys, was the weak point.
+* **The Mechanism:** The screen showed a routine transfer, while the signed bytes replaced the wallet's logic. Our replay models this as an `upgradeTo` on the wallet.
 * **Why Existing Solutions Fail:** Browser extensions, RPC-level alerts, and dApp simulations are **client-side only**. If the frontend or signer workstation is compromised, these warnings are suppressed or bypassed.
 * **Vero’s Resolution:** **On-Chain Invariant Enforcement.** Vero binds user signatures to an on-chain **EIP-712 IntentPolicy**. Even if all multisig signers are tricked into signing, **the smart contract (`VeroGuard.sol`) reverts the transaction at the EVM execution level**.
 
@@ -32,48 +32,34 @@ The attack aims to overwrite the ERC-1967 logic proxy implementation slot:
 $$\text{Slot } \texttt{0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc} = \text{bytes32}(\text{uint256}(\text{keccak256}('eip1967.proxy.implementation')) - 1)$$
 
 ### C. The Vero On-Chain Defense (`VeroGuard.sol`)
-Using Cancun EVM Transient Storage (`TSTORE` / `TLOAD`), `VeroGuard` executes a zero-cost pre-call state snapshot and a post-call state diff:
+`GuardedMultisig.execTransaction` asks `VeroGuard.takeSnapshot` for a pre-execution snapshot (ETH and registered token balances, wallet codehash, `masterCopy`, owners hash, threshold, guard), held in memory, then calls `VeroGuard.checkAfterExecution` with it after the inner call. Any changed control value reverts with `ControlSlotMutated(...)`. Simplified from `contracts/src/VeroGuard.sol` (the contracts do not use transient storage):
 ```solidity
-// Pre-execution frame in VeroGuard.sol:
-assembly {
-    // Snapshot critical implementation slot before delegatecall
-    let preImpl := sload(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-    tstore(SLOT_PRE_IMPL, preImpl)
-}
+// GuardedMultisig.execTransaction (simplified)
+preSnap = VeroGuard(guard).takeSnapshot(address(this), policy.tokenAddresses);
+(success, ) = operation == 1 ? to.delegatecall(data) : to.call{value: value}(data);
+VeroGuard(guard).checkAfterExecution(address(this), success, policy, preSnap);
 
-// Post-execution verification frame:
-assembly {
-    let postImpl := sload(0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)
-    let preImpl := tload(SLOT_PRE_IMPL)
-    if iszero(eq(preImpl, postImpl)) {
-        // Revert atomically with Custom Error: ControlSlotMutated("masterCopy")
-        mstore(0x00, 0xdbe73428) // selector for ControlSlotMutated(string)
-        revert(0x00, 0x24)
-    }
-}
+// VeroGuard.checkAfterExecution (simplified)
+if (ms.masterCopy() != preSnap.masterCopy) revert ControlSlotMutated("masterCopy");
 ```
 
 ### D. Empirical Foundry Test Evidence
 ```bash
-cd contracts && forge test --match-test test_WazirX -vvv
+cd contracts && forge test --match-test test_WazirX_Slot0Swap_Blocked
 ```
-**Output:**
+**Output (Foundry 1.10.0):**
 ```text
-[PASS] test_WazirX_Slot0Swap_Blocked() (gas: 182341)
-Logs:
-  [VeroGuard] Pre-execution storage snapshot captured (Implementation: 0x1111...1111)
-  [VeroGuard] Unauthorized mutation detected on slot 0x3608...
-  [EVM Revert] ControlSlotMutated("masterCopy")
+[PASS] test_WazirX_Slot0Swap_Blocked() (gas: 419003)
 ```
 
 ---
 
-## 3. Evidence Layer 2: Mathematical Invariant Fuzzing (12,800 Calls)
+## 3. Evidence Layer 2: Invariant Fuzz Testing (12,800 Calls)
 
-To prove that no edge case or complex transaction sequence can leak funds or bypass the guard, we ran **Foundry Invariant Fuzz Testing** (`contracts/test/VeroInvariants.t.sol`):
-* **Fuzzing Parameters:** 256 independent runs $\times$ 50 deep call sequences = **12,800 random state transitions**.
+Foundry invariant fuzzing (`contracts/test/VeroInvariants.t.sol`) searches random call sequences for a violation. It found none; this is strong testing evidence, not a formal proof.
+* **Measured:** `VeroInvariantsTest invariants (runs: 256, calls: 12800, reverts: 0)`.
 
-| Invariant | Property Formally Proven | Result |
+| Invariant | Property checked under fuzzing | Result |
 | :--- | :--- | :---: |
 | `invariant_ZeroUndeclaredOutflows` | Total outgoing token balance delta $\le \sum \text{policy.maxPayments}$ under all random calldata permutations. | **PASS** |
 | `invariant_ControlSlotImmutability` | Slots `masterCopy`, `ownersHash`, `threshold`, and `guard` remain identical before and after execution. | **PASS** |
@@ -82,29 +68,32 @@ To prove that no edge case or complex transaction sequence can leak funds or byp
 
 ---
 
-## 4. Evidence Layer 3: 50-Scenario Empirical Evaluation Benchmark
+## 4. Evidence Layer 3: Scenario Benchmarks (real engine)
 
-In `scripts/run_evidence_eval.py`, we benchmarked Vero across 50 realistic enterprise transaction scenarios (25 malicious attacks + 25 benign operations):
+**A. 55-scenario benchmark** (`python -m simulator.bench.run_eval`, summarised by `node evals/run_benchmark.js`):
+40 main (20 malicious, 20 benign), 10 held-out, 5 public-incident reconstructions; four baselines with 95% Wilson intervals.
 
-### Confusion Matrix
-| Actual \ Predicted | Predicted BLOCKED | Predicted ALLOWED | Total |
-| :--- | :---: | :---: | :---: |
-| **Actual Malicious** | **25 (True Positives)** | **0 (False Negatives)** | 25 |
-| **Actual Benign** | **0 (False Positives)** | **25 (True Negatives)** | 25 |
+| Baseline | Detection | Block | False positives |
+| :--- | :--- | :--- | :--- |
+| Plain wallet | 0/30 (0.0%, CI 0.0–11.4%) | 0/30 | 0/25 |
+| Static blocklist | 3/30 (10.0%, CI 3.5–25.6%) | 3/30 | 0/25 |
+| Warnings only | 30/30 (100.0%, CI 88.6–100%) | 0/30 | 0/25 |
+| Full Vero | 30/30 (100.0%, CI 88.6–100%) | 30/30 (modelled) | 0/25 (CI 0.0–13.3%) |
 
-### Statistical Performance Metrics
-* **Accuracy:** $$\frac{TP + TN}{Total} = \frac{25 + 25}{50} = \mathbf{100.0\%}$$
-* **Precision:** $$\frac{TP}{TP + FP} = \frac{25}{25 + 0} = \mathbf{1.000}$$
-* **Recall (Sensitivity):** $$\frac{TP}{TP + FN} = \frac{25}{25 + 0} = \mathbf{1.000}$$
-* **F1 Score:** $$2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = \mathbf{1.000}$$
-* **False Positive Rate (FPR):** $$\mathbf{0.0\%}$$
+**B. 50-scenario synthetic check** (`python scripts/run_evidence_eval.py`, same adapter as `/v1/simulate`):
+25 malicious (10 `upgradeTo`, 10 unlimited approvals, 5 large ETH sends outside the declared intent) and 25 benign declared payments.
+Result: blocked 25/25 (95% CI 86.7–100%), false positives 0/25 (95% CI 0.0–13.3%).
+
+**Caveats judges should hear from us:** all scenarios are team-authored and the engine was developed against them, so read
+the confidence intervals, not the point rates; the held-out set still needs an outside author; the Full Vero block rate is
+modelled from HIGH/CRITICAL verdicts, while on-chain blocking is demonstrated by the Foundry replays in Layer 1.
 
 ---
 
 ## 5. Evidence Layer 4: Latency & Performance SLA Benchmark
 
 The hackathon specification mandated measured execution latency **$< 150\text{ ms}$**.  
-We ran `scripts/benchmark_latency.py` across 100 sequential simulations through the full `/v1/simulate` API pipeline:
+`api-agents/scripts/benchmark_latency.py` sends 100 sequential requests through the full `/v1/simulate` route in-process (FastAPI TestClient, static calldata analysis, no fork). Measured on a MacBook:
 
 ```text
 =======================================================
@@ -112,23 +101,18 @@ We ran `scripts/benchmark_latency.py` across 100 sequential simulations through 
 =======================================================
  Total Requests    : 100
  Target Max SLA    : < 150.0 ms
- Average Latency   : 9.504 ms
- Median (p50)      : 6.956 ms
- 95th Percentile   : 23.359 ms
- 99th Percentile   : 43.278 ms
- Min Latency       : 5.091 ms
- Max Latency       : 43.278 ms
+ Average Latency   : 3.111 ms
+ Median (p50)      : 3.063 ms
+ 95th Percentile   : 3.509 ms
+ 99th Percentile   : 3.662 ms
+ Min Latency       : 2.824 ms
+ Max Latency       : 3.662 ms
 =======================================================
- [PASS] 99th percentile (43.28 ms) is well within target (< 150.0 ms).
+ [PASS] 99th percentile (3.66 ms) is well within target (< 150.0 ms).
 ```
 
-### Micro-Benchmarking Breakdown:
-1. **Keccak-256 Preimage Hashing:** $0.12\text{ ms}$
-2. **State-Fork Execution & Trace Extraction:** $7.20\text{ ms}$
-3. **12-Rule Deterministic Evaluation:** $0.85\text{ ms}$
-4. **BIP-39 4-Word Checksum Mapping:** $0.45\text{ ms}$
-5. **JSON Serialization & Response:** $0.88\text{ ms}$
-* **Total Execution Time:** $\approx \mathbf{9.5\text{ ms}}$ (15x faster than the 150 ms ceiling).
+Fork mode (real `debug_traceCall` on a local Anvil) measured about 2–4 ms per simple transfer in the live Anvil
+integration tests (`tests/integration/test_anvil_live.py`); a mainnet fork will be slower and has not been measured yet.
 
 ---
 
@@ -143,10 +127,10 @@ $$\text{Digest} = \text{keccak256}(\text{Preimage})$$
 * 4 words $\implies 4 \times 11 = \mathbf{44\text{ bits of entropy}}$.
 * Total combinations: $2^{44} = \mathbf{17,592,186,044,416}$ ($> 17.5\text{ trillion}$).
 
-### Sensitivity Test Vector (`tests/test_checksum.py`):
-* Input A: `chain_id=1, nonce=10, raw_tx_hash=0x1111...` $\implies$ **`apple-banana-cherry-date`**
-* Input B (Flip 1 bit in tx hash): `raw_tx_hash=0x1211...` $\implies$ **`falcon-glacier-orbit-timber`**
-* **Result:** A single flipped bit cascades into a completely different 4-word set, making undetected UI spoofing impossible for an attacker.
+### Sensitivity Vector (computed with `compute_four_word_checksum`):
+* Input A: `chain_id=1, safe=0x5a5a…5a5a, nonce=10, raw_tx_hash=0x1111…1111, intent_hash=0x0` $\implies$ **`menu-avocado-silver-smart`**
+* Input B (first byte of the tx hash changed to `0x12`): $\implies$ **`zebra-host-minor-slight`**
+* **Result:** a one-byte change gives an unrelated word set. With 44 bits, an attacker needs about $2^{43}$ tries on average to find a different transaction with the same words.
 
 ---
 
@@ -155,11 +139,11 @@ $$\text{Digest} = \text{keccak256}(\text{Preimage})$$
 Indian regulatory rules (CERT-In Directions, April 2022) mandate reporting specified cyber incidents within 6 hours.  
 When an exploit is blocked, Vero auto-generates:
 1. Machine-readable JSON log (`receipt.json`).
-2. Court-admissible 1-page PDF document (`receipt.pdf`).
+2. A 1-page PDF document (`receipt.pdf`).
 3. Cryptographically sealed with pure-Python **Ed25519 (RFC 8032)**.
 
 ### Standalone Auditor Verification:
-An auditor or court investigator can verify the evidence without network access or trusting our servers:
+An auditor can verify a receipt offline against the public key it carries. Set `VERO_RECEIPT_SIGNING_SEED` (32 bytes hex) on the server and publish its public key; without it, each server start uses a fresh key:
 ```bash
 python scripts/verify_receipt.py receipt.json
 ```
@@ -168,11 +152,11 @@ python scripts/verify_receipt.py receipt.json
 ============================================================
       PROJECT VERO // ED25519 RECEIPT VERIFIER      
 ============================================================
- Receipt ID        : VERO-CERTIN-WAZIRX-REPLAY
- Timestamp         : 2026-11-20T13:18:06.206910+00:00
+ Receipt ID        : VERO-CERTIN-A9B20B73
+ Timestamp         : 2026-11-20T18:57:55.454667+00:00
  Decision          : BLOCK (Risk: 95)
- Public Key        : 23ac0770a1060241604a8e60a47166e3...
- Ed25519 Signature : 793824da00a281a1ff05521fc4c9c749...
+ Public Key        : 9782fb8959c53b80568ad36c02e533d9...
+ Ed25519 Signature : 2c942f00bbdcf1fa84a3caf6b54947eb...
 ------------------------------------------------------------
  [VERIFICATION SUCCESS] Signature matches public key and payload.
 ============================================================
@@ -184,10 +168,10 @@ python scripts/verify_receipt.py receipt.json
 
 | Evidence Tool | Description | File Location in Repo |
 | :--- | :--- | :--- |
-| **10-Second Live Exploit CLI** | Color-coded live simulation of WazirX exploit and revert | [`scripts/demo_wazirx_live.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/scripts/demo_wazirx_live.py) |
-| **Interactive Web Cockpit** | Visual browser UI with side-by-side attack comparison | [`demo_cockpit.html`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/demo_cockpit.html) |
-| **50-Scenario Benchmark** | Empirical 100% detection & 0% false positive matrix | [`scripts/run_evidence_eval.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/scripts/run_evidence_eval.py) |
-| **Latency Benchmark Harness** | Automated 100-run latency profiler (average 9.5 ms) | [`api-agents/scripts/benchmark_latency.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/api-agents/scripts/benchmark_latency.py) |
+| **WazirX Replay CLI** | Runs the payload through the real engine, the Foundry revert test and a signed receipt | [`scripts/demo_wazirx_live.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/scripts/demo_wazirx_live.py) |
+| **Illustrative Web Cockpit** | Scripted walkthrough (static values); live verdicts are in the Web HUD at `/` | [`demo_cockpit.html`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/demo_cockpit.html) |
+| **50-Scenario Synthetic Check** | Real-engine run, computed counts and 95% Wilson intervals | [`scripts/run_evidence_eval.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/scripts/run_evidence_eval.py) |
+| **Latency Benchmark Harness** | 100-request in-process profiler (measured average 3.1 ms, static mode) | [`api-agents/scripts/benchmark_latency.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/api-agents/scripts/benchmark_latency.py) |
 | **Exploit Replay Test Suite** | 13 live exploit tests passing on Foundry | [`contracts/test/ExploitReplays.t.sol`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/contracts/test/ExploitReplays.t.sol) |
 | **Invariant Fuzzing Suite** | 12,800 random state calls with zero invariant violations | [`contracts/test/VeroInvariants.t.sol`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/contracts/test/VeroInvariants.t.sol) |
 | **Ed25519 Receipt Verifier** | Independent auditor verification script | [`api-agents/scripts/verify_receipt.py`](https://github.com/BlueSilverEmperor/Prana-v1/blob/main/api-agents/scripts/verify_receipt.py) |

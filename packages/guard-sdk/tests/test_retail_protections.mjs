@@ -1,152 +1,146 @@
 /**
- * Test Suite for @vero/guard-sdk Retail Protections (#17, #18, #19, #45).
+ * Tests for @vero/guard-sdk. Imports the real src/index.ts (Node >= 23.6 strips TypeScript types),
+ * with a fake EIP-1193 provider and a stubbed global fetch for the firewall.
+ * Run: node tests/test_retail_protections.mjs
  */
 
-import assert from "assert";
+import assert from "node:assert/strict";
+import {
+  VeroGuardProvider,
+  VeroSecurityError,
+  buildRevokeCalldata,
+  capUnlimitedApproval,
+  decodePermits,
+} from "../src/index.ts";
 
-// Minimal mock provider
-class MockEIP1193 {
-  constructor() {
-    this.history = [];
-  }
-  async request({ method, params }) {
-    this.history.push({ method, params });
-    if (method === "eth_sendTransaction") {
-      return "0xdeadbeef11223344556677889900aabbccddeeff0011223344556677889900aa";
-    }
-    return "0x1";
-  }
+const SPENDER = "3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad";
+const APPROVE_MAX = "0x095ea7b3" + SPENDER.padStart(64, "0") + "f".repeat(64);
+const TX = { from: "0x" + "11".repeat(20), to: "0x" + "dd".repeat(20), value: "0x0", chainId: "0x1" };
+const verdict = (decision, extra = {}) => ({ decision, risk_score: 0, flags: [], four_word_checksum: "a-b-c-d",
+  deterministic_human_warnings: decision === "ALLOW" ? [] : ["[R1] CRITICAL: test"], ...extra });
+
+function fakeProvider() {
+  const calls = [];
+  return { calls, async request(args) { calls.push(args); return args.method === "eth_chainId" ? "0x1" : "0xhash"; } };
 }
 
-// Compile TS logic directly in pure ESM for node execution
-const SIG_APPROVE = "095ea7b3";
-const MAX_UINT256_HEX = "f".repeat(64);
-
-function capUnlimitedApproval(calldata, cappedAmount = 1000n * 10n ** 18n) {
-  const clean = calldata.startsWith("0x") ? calldata.slice(2).toLowerCase() : calldata.toLowerCase();
-  if (clean.length < 136 || clean.slice(0, 8) !== SIG_APPROVE) {
-    return { modified: false, calldata };
-  }
-  const spender = clean.slice(8, 72);
-  const amountHex = clean.slice(72, 136);
-
-  if (amountHex === MAX_UINT256_HEX || amountHex.startsWith("ffffffff")) {
-    const newAmountHex = cappedAmount.toString(16).padStart(64, "0");
-    const rewritten = "0x" + clean.slice(0, 8) + spender + newAmountHex;
-    return {
-      modified: true,
-      calldata: rewritten,
-      cappedAmountHex: newAmountHex,
-    };
-  }
-  return { modified: false, calldata };
-}
-
-function buildRevokeCalldata(spenderAddress) {
-  const cleanSpender = spenderAddress.startsWith("0x") ? spenderAddress.slice(2).toLowerCase() : spenderAddress.toLowerCase();
-  const paddedSpender = cleanSpender.padStart(64, "0");
-  const zeroAmount = "0".repeat(64);
-  return `0x${SIG_APPROVE}${paddedSpender}${zeroAmount}`;
-}
-
-function decodePermitTypedData(typedData) {
-  if (!typedData) return null;
-  const data = typeof typedData === "string" ? JSON.parse(typedData) : typedData;
-  const primaryType = data.primaryType;
-  const message = data.message || {};
-
-  if (primaryType === "Permit") {
-    return {
-      type: "EIP2612",
-      token: data.domain?.verifyingContract,
-      owner: message.owner,
-      spender: message.spender,
-      amount: String(message.value || "0"),
-      deadline: Number(message.deadline || 0),
-      nonce: Number(message.nonce || 0),
-    };
-  }
-
-  if (primaryType === "PermitSingle") {
-    const details = message.details || {};
-    return {
-      type: "PERMIT2_SINGLE",
-      token: details.token,
-      spender: message.spender,
-      amount: String(details.amount || "0"),
-      deadline: Number(message.sigDeadline || details.expiration || 0),
-      nonce: Number(details.nonce || 0),
-    };
-  }
-
-  return null;
-}
-
-async function runTests() {
-  console.log("\n========================================================");
-  console.log("   RUNNING @vero/guard-sdk RETAIL PROTECTIONS SUITE     ");
-  console.log("========================================================");
-
-  // 1. Feature #17: Unlimited Approval Capping
-  console.log("\n[TEST 1] Feature #17: Automatic Unlimited Approval Capping");
-  const maliciousUnlimitedCalldata = "0x095ea7b3" + "0".repeat(24) + "1".repeat(40) + "f".repeat(64);
-  const capRes = capUnlimitedApproval(maliciousUnlimitedCalldata, 500n * 10n ** 18n);
-  assert.strictEqual(capRes.modified, true, "Expected calldata to be modified");
-  assert.ok(!capRes.calldata.includes("ffffffffffffffff"), "MAX_UINT256 should be removed");
-  console.log("  ✓ Rewrote MAX_UINT256 to capped amount: " + capRes.calldata.slice(0, 30) + "...");
-
-  // 2. Feature #19: Open-Approval Revocation
-  console.log("\n[TEST 2] Feature #19: Open-Approval Scanner & One-Click Revoke");
-  const spender = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
-  const revokeCalldata = buildRevokeCalldata(spender);
-  assert.ok(revokeCalldata.startsWith("0x095ea7b3"), "Must use approve selector");
-  assert.ok(revokeCalldata.endsWith("0".repeat(64)), "Amount must be strictly zero");
-  console.log("  ✓ Generated zero-approval revoke calldata: " + revokeCalldata.slice(0, 30) + "...");
-
-  // 3. Feature #18: Permit2 Gasless Permit Decoder
-  console.log("\n[TEST 3] Feature #18: Gasless Off-Chain Permit & Permit2 Decoder");
-  const samplePermit2 = {
-    primaryType: "PermitSingle",
-    domain: { name: "Permit2", chainId: 1, verifyingContract: "0x000000000022D473030F116dDEE9F6B43aC78BA3" },
-    message: {
-      details: {
-        token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        amount: "1461501637330902918203684832716283019655932542975",
-        expiration: 1720000000,
-        nonce: 1
-      },
-      spender: "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD",
-      sigDeadline: 1720000000
-    }
+function stubFetch(handler) {
+  const seen = [];
+  globalThis.fetch = async (url, init) => {
+    seen.push({ url, body: JSON.parse(init.body), signal: init.signal });
+    return handler(init);
   };
-  const decoded = decodePermitTypedData(samplePermit2);
-  assert.strictEqual(decoded.type, "PERMIT2_SINGLE");
-  assert.strictEqual(decoded.spender, "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD");
-  assert.strictEqual(decoded.amount, "1461501637330902918203684832716283019655932542975");
-  console.log("  ✓ Decoded Permit2: spender=" + decoded.spender + ", amount=" + decoded.amount);
+  return seen;
+}
+const respond = (body, status = 200) => async () => ({ ok: status === 200, status, json: async () => body });
 
-  // 4. Feature #45: Provider Interception & Transaction Forwarding
-  console.log("\n[TEST 4] Feature #45: EIP-1193 Provider Transaction Auto-Capping");
-  const rawProvider = new MockEIP1193();
-  const tx = {
-    to: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    data: maliciousUnlimitedCalldata,
-    value: "0"
-  };
-
-  // Simulate provider request with auto-capping
-  if (capUnlimitedApproval(tx.data).modified) {
-    tx.data = capUnlimitedApproval(tx.data).calldata;
-  }
-  const txHash = await rawProvider.request({ method: "eth_sendTransaction", params: [tx] });
-  assert.ok(txHash.startsWith("0xdeadbeef"));
-  assert.ok(!rawProvider.history[0].params[0].data.includes("ffffffffffffffff"));
-  console.log("  ✓ Auto-capped transaction forwarded to provider with hash: " + txHash.slice(0, 18) + "...");
-
-  console.log("\n🎉 ALL @vero/guard-sdk RETAIL PROTECTION TESTS PASSED (4/4)!\n");
+async function rejectsWith(promise, flag) {
+  await assert.rejects(promise, (err) => err instanceof VeroSecurityError && err.flags.includes(flag));
 }
 
-runTests().catch(err => {
-  console.error("Test failed:", err);
-  process.exit(1);
-});
+const tests = {
+  "caps approve(MAX) and leaves normal approvals alone": () => {
+    const capped = capUnlimitedApproval(APPROVE_MAX, 5n);
+    assert.equal(capped.modified, true);
+    assert.equal(capped.calldata.slice(-64), "5".padStart(64, "0"));
+    assert.equal(capped.spender, "0x" + SPENDER);
+    const normal = "0x095ea7b3" + SPENDER.padStart(64, "0") + (100n).toString(16).padStart(64, "0");
+    assert.equal(capUnlimitedApproval(normal).modified, false);
+  },
+  "revoke calldata zeroes the allowance and validates the address": () => {
+    assert.equal(buildRevokeCalldata("0x" + SPENDER).slice(-64), "0".repeat(64));
+    assert.throws(() => buildRevokeCalldata("0xnot-an-address"));
+  },
+  "decodes every token in a Permit2 batch": () => {
+    const permits = decodePermits({ primaryType: "PermitBatch", message: { spender: "0x" + SPENDER, sigDeadline: 1,
+      details: [{ token: "0xaa", amount: "1" }, { token: "0xbb", amount: String(2n ** 160n - 1n) }] } });
+    assert.deepEqual(permits.map((p) => p.token), ["0xaa", "0xbb"]);
+  },
+  "firewall unreachable: blocks and does not forward": async () => {
+    const provider = fakeProvider();
+    stubFetch(async () => { throw new TypeError("fetch failed"); });
+    await rejectsWith(new VeroGuardProvider(provider).request({ method: "eth_sendTransaction", params: [TX] }),
+      "FIREWALL_UNAVAILABLE");
+    assert.equal(provider.calls.filter((c) => c.method === "eth_sendTransaction").length, 0);
+  },
+  "failOpen is an explicit opt-in": async () => {
+    const provider = fakeProvider();
+    stubFetch(async () => { throw new TypeError("fetch failed"); });
+    await new VeroGuardProvider(provider, { failOpen: true }).request({ method: "eth_sendTransaction", params: [TX] });
+    assert.equal(provider.calls.at(-1).method, "eth_sendTransaction");
+  },
+  "firewall timeout blocks": async () => {
+    // A real fetch keeps the event loop alive while waiting; the stub must too (the abort timer is unref'd).
+    stubFetch((init) => new Promise((_, reject) => {
+      const keepAlive = setTimeout(() => {}, 5000);
+      init.signal.addEventListener("abort", () => { clearTimeout(keepAlive); reject(init.signal.reason); });
+    }));
+    await rejectsWith(new VeroGuardProvider(fakeProvider(), { timeoutMs: 30 })
+      .request({ method: "eth_sendTransaction", params: [TX] }), "FIREWALL_UNAVAILABLE");
+  },
+  "malformed verdict blocks": async () => {
+    stubFetch(respond({}));
+    await rejectsWith(new VeroGuardProvider(fakeProvider()).request({ method: "eth_sendTransaction", params: [TX] }),
+      "INVALID_FIREWALL_RESPONSE");
+  },
+  "BLOCK verdict throws and is not forwarded": async () => {
+    const provider = fakeProvider();
+    stubFetch(respond(verdict("BLOCK", { flags: ["MODULE_ENABLED"] })));
+    await rejectsWith(new VeroGuardProvider(provider).request({ method: "eth_sendTransaction", params: [TX] }),
+      "MODULE_ENABLED");
+    assert.equal(provider.calls.filter((c) => c.method === "eth_sendTransaction").length, 0);
+  },
+  "WARN is rejected unless the user confirms": async () => {
+    stubFetch(respond(verdict("WARN")));
+    await assert.rejects(new VeroGuardProvider(fakeProvider()).request({ method: "eth_sendTransaction", params: [TX] }));
+    const provider = fakeProvider();
+    await new VeroGuardProvider(provider, { onWarning: async () => true })
+      .request({ method: "eth_sendTransaction", params: [TX] });
+    assert.equal(provider.calls.at(-1).method, "eth_sendTransaction");
+  },
+  "ALLOW forwards, and calldata in `input` is what gets simulated": async () => {
+    const provider = fakeProvider();
+    const seen = stubFetch(respond(verdict("ALLOW")));
+    await new VeroGuardProvider(provider).request({ method: "eth_sendTransaction", params: [{ ...TX, input: "0x12345678" }] });
+    assert.equal(seen[0].body.data, "0x12345678");
+    assert.equal(provider.calls.at(-1).method, "eth_sendTransaction");
+  },
+  "capping is reported and can be declined": async () => {
+    const seen = stubFetch(respond(verdict("ALLOW")));
+    let info = null;
+    const provider = fakeProvider();
+    await new VeroGuardProvider(provider, { defaultSpendCap: 7n, onCapped: async (i) => { info = i; return true; } })
+      .request({ method: "eth_sendTransaction", params: [{ ...TX, data: APPROVE_MAX }] });
+    assert.equal(info.cappedAmount, 7n);
+    assert.equal(seen[0].body.data.slice(-64), "7".padStart(64, "0"));
+    await rejectsWith(new VeroGuardProvider(fakeProvider(), { onCapped: async () => false })
+      .request({ method: "eth_sendTransaction", params: [{ ...TX, data: APPROVE_MAX }] }), "APPROVAL_CAP_DECLINED");
+  },
+  "unverifiable methods are blocked by default": async () => {
+    for (const method of ["eth_sendRawTransaction", "eth_sign", "wallet_sendCalls"]) {
+      await rejectsWith(new VeroGuardProvider(fakeProvider()).request({ method, params: [] }), "UNVERIFIABLE_METHOD");
+    }
+  },
+  "unlimited permit (decimal amount) is blocked; bounded permit passes": async () => {
+    const typed = (value) => JSON.stringify({ primaryType: "Permit", domain: { verifyingContract: "0xaa" },
+      message: { owner: "0x11", spender: "0x" + SPENDER, value, nonce: 0, deadline: 1 } });
+    await rejectsWith(new VeroGuardProvider(fakeProvider())
+      .request({ method: "eth_signTypedData_v4", params: ["0x11", typed(String(2n ** 256n - 1n))] }), "UNLIMITED_GASLESS_PERMIT");
+    const provider = fakeProvider();
+    await new VeroGuardProvider(provider).request({ method: "eth_signTypedData_v4", params: ["0x11", typed("100")] });
+    assert.equal(provider.calls.at(-1).method, "eth_signTypedData_v4");
+  },
+};
+
+let failed = 0;
+for (const [name, fn] of Object.entries(tests)) {
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+  } catch (err) {
+    failed += 1;
+    console.log(`  ✗ ${name}\n    ${err.stack || err}`);
+  }
+}
+console.log(`\n${Object.keys(tests).length - failed}/${Object.keys(tests).length} passed`);
+process.exit(failed ? 1 : 0);
