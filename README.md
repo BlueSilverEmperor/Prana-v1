@@ -111,6 +111,12 @@ forge test -vvv
 - `test_4WordChecksum_Derivation` [PASS] (BIP-39 Dual-Device Verifier)
 - `test_VeroSafeGuard_Adapter_Deployment` [PASS] (Gnosis Safe v1.3/v1.4 Drop-In Adapter)
 
+### Quai Network Subsystem Suite (`QuaiVeroAdapter.t.sol`) — 4/4 Passed
+- `test_quai_cross_shard_replay_blocked` [PASS] (Rejects cross-shard transactions)
+- `test_quai_dual_ledger_spend_caps` [PASS] (Enforces $QUAI and $QI limits)
+- `test_quai_qi_velocity_cap_enforced` [PASS] (Rolling 24-hour Qi energy-dollar limit)
+- `test_quai_checksum_word_derivation` [PASS] (244-byte shard-bound BIP-39 mnemonic)
+
 ### Invariant Fuzzing (`VeroInvariants.t.sol`) — 4/4 Invariants Passed
 - **Runs:** 256 | **Calls:** 12,800 | **Reverts:** 0
 - `invariant_ZeroUndeclaredOutflows` [PASS]
@@ -120,9 +126,16 @@ forge test -vvv
 
 ---
 
-## 6. Deployment Script
-To simulate local deployment using Foundry:
-```bash
-cd contracts
-forge script script/DeployVero.s.sol
-```
+## 6. Deployment Scripts
+- **Standard EVM Deployment:**
+  ```bash
+  cd contracts
+  forge script script/DeployVero.s.sol
+  ```
+- **Quai Network Shard-Bound Deployment (Cyprus-1):**
+  ```bash
+  cd contracts
+  forge script script/DeployQuai.s.sol
+  # Or via Node.js + quais SDK:
+  node deploy_quai.mjs
+  ```

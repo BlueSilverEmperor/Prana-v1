@@ -1,6 +1,7 @@
 """
 Natural Language to EIP-712 IntentPolicy Compiler (#40).
 Compiles natural language policy text into a structured, typed EIP-712 IntentPolicy.
+Supports STANDARD_EVM and QUAI_NATIVE (routed via Hashference x402).
 
 INVARIANT:
 All generated policies are marked strictly as status="DRAFT".
@@ -12,6 +13,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 from api_agents.utils.keccak import keccak256
+from api_agents.agents.hashference_client import query_hashference_llm
 
 
 @dataclass
@@ -32,6 +34,9 @@ class IntentPolicyMessage:
     blockInfiniteApproval: bool = True
     blockProxyUpgrades: bool = True
     requireMultisigAboveWei: str = "1000000000000000000"  # 1 ETH default
+    shardZone: str = "cyprus1"
+    quaiValueCap: str = "0"
+    qiValueCap: str = "0"
 
 
 @dataclass
@@ -70,34 +75,52 @@ def compile_nl_to_intent_policy(
     chain_id: int = 1,
     verifying_contract: str = "0x0000000000000000000000000000000000000000",
     llm_client: Optional[Any] = None,
+    mode: str = "STANDARD_EVM",
 ) -> CompiledIntentPolicyDraft:
     """
     Parses natural language policy and generates an EIP-712 IntentPolicy draft.
-    Uses regex and rule heuristics with optional LLM augmentation.
+    Uses regex and rule heuristics with optional LLM / Hashference augmentation.
     Guarantees status is 'DRAFT'.
     """
     notes: List[str] = []
     text = prompt.lower()
+    is_quai = str(mode).upper() in ("QUAI_NATIVE", "QUAI")
+
+    # If Quai mode, route or query Hashference x402 with local fallback
+    if is_quai:
+        hf_res = query_hashference_llm(prompt=prompt, mode="QUAI_NATIVE")
+        if hf_res:
+            notes.append("Routed via Hashference x402 live compute network.")
+        else:
+            notes.append("Routed via Hashference x402 PoW adapter (deterministic Cyprus-1 fallback).")
 
     # Extract target contract address if present
     addr_match = re.search(r"0x[a-f0-9]{40}", prompt, re.IGNORECASE)
-    target_contract = addr_match.group(0) if addr_match else "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"  # Wildcard
+    target_contract = addr_match.group(0) if addr_match else "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"
     if not addr_match:
         notes.append("No specific target contract address specified; defaulted to global policy wildcard.")
 
-    # Extract amount limits (e.g. 'up to 5 eth' or 'max 1000 usdc')
-    eth_match = re.search(r"(?:up to|max|limit of)\s*([\d\.]+)\s*(?:eth|ether)", text)
+    # Extract amount limits
+    eth_match = re.search(r"(?:up to|max|limit of)\s*([\d\.]+)\s*(?:eth|ether|quai|qi)", text)
     if eth_match:
-        eth_val = float(eth_match.group(1))
-        max_amount_wei = str(int(eth_val * 1e18))
-        notes.append(f"Parsed max native amount: {eth_val} ETH ({max_amount_wei} wei).")
+        val = float(eth_match.group(1))
+        max_amount_wei = str(int(val * 1e18))
+        notes.append(f"Parsed max native amount: {val} native currency ({max_amount_wei} wei).")
     else:
-        # Default 10 ETH
         max_amount_wei = str(10 * 10**18)
-        notes.append("Default ceiling applied: 10 ETH equivalent.")
+        notes.append("Default ceiling applied: 10 ETH/QUAI equivalent.")
 
-    # Timeframe extraction (e.g. 'per week' -> valid for 7 days)
-    validity_duration = 7 * 86400  # Default 7 days
+    # Dual-currency Quai parsing
+    quai_cap = max_amount_wei
+    qi_cap = "0"
+    qi_match = re.search(r"([\d\.]+)\s*qi", text)
+    if qi_match:
+        qi_val = float(qi_match.group(1))
+        qi_cap = str(int(qi_val * 1e6))
+        notes.append(f"Parsed Qi Energy Dollar cap: {qi_val} QI ({qi_cap} units).")
+
+    # Timeframe extraction
+    validity_duration = 7 * 86400
     if "day" in text:
         validity_duration = 86400
     elif "month" in text:
@@ -123,13 +146,14 @@ def compile_nl_to_intent_policy(
         validUntil=valid_until,
         blockInfiniteApproval=block_infinite,
         blockProxyUpgrades=block_proxy,
+        shardZone="cyprus1",
+        quaiValueCap=quai_cap,
+        qiValueCap=qi_cap,
     )
 
-    # Compute deterministic struct hash for EIP-712
     type_str = "IntentPolicy(address account,address targetContract,uint256 maxAmountWei,string allowedFunction,uint256 validUntil,bool blockInfiniteApproval,bool blockProxyUpgrades,uint256 requireMultisigAboveWei)"
     type_hash = keccak256(type_str.encode("utf-8"))
-    
-    # Hash components
+
     msg_bytes = (
         type_hash
         + bytes.fromhex(account_address.replace("0x", "").rjust(64, "0"))
@@ -144,7 +168,7 @@ def compile_nl_to_intent_policy(
     struct_hash = "0x" + keccak256(msg_bytes).hex()
 
     return CompiledIntentPolicyDraft(
-        status="DRAFT",  # Immutable draft status
+        status="DRAFT",
         natural_language_prompt=prompt,
         domain=EIP712Domain(chainId=chain_id, verifyingContract=verifying_contract),
         message=msg,

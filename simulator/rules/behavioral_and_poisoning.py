@@ -1,5 +1,5 @@
 """Shields #26 behavioural anomalies, #28 gas ceiling, #31 chain binding, #33 poisoning,
-and #36 bridge destination checks."""
+#36 bridge destination checks, and Quai shard prefix spoofing."""
 
 from __future__ import annotations
 
@@ -122,7 +122,22 @@ def bridge_destinations(inp: AnalysisInput) -> list[RiskAlert]:
     ]
 
 
+def quai_shard_prefix_spoofing(inp: AnalysisInput) -> list[RiskAlert]:
+    is_quai = (inp.request.chainId in (9, 15000)) or (getattr(inp.policy, "mode", None) in ("QUAI_NATIVE", "QUAI"))
+    if not is_quai:
+        return []
+    expected_zone = getattr(inp.policy, "shardZone", None) or "cyprus1"
+    targets = {r[0] for r in recipients(inp.diff, inp.safe)} | {a.spender for a in inp.diff.approvals} | {c.target for c in inp.calls}
+    out = []
+    from simulator.analyzers.poisoning import detect_quai_shard_prefix_spoofing
+    for t in sorted(targets):
+        res = detect_quai_shard_prefix_spoofing(t, expected_zone)
+        if res:
+            out.append(alert("Q33-SHARD-SPOOF", "HIGH", res["warning"], target=t, expectedZone=expected_zone))
+    return out
+
+
 SHIELDS: tuple[Callable[[AnalysisInput], list[RiskAlert]], ...] = (
     vault_share, first_time_recipients, new_contracts, address_poisoning, gas_ceiling, chain_binding,
-    bridge_destinations,
+    bridge_destinations, quai_shard_prefix_spoofing,
 )

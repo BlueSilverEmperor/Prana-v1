@@ -25,9 +25,14 @@
         <p class="text-xs text-slate-400 mt-1">Track 02: Cybersecurity & Blockchain • Problem B1: "Know What You're Signing" • Team WolverX</p>
       </div>
       <div class="flex items-center space-x-3">
-        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <!-- Subsystem Switch -->
+        <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs font-mono">
+          <button id="toggleEvm" onclick="setCockpitEngine('standard')" class="px-2.5 py-1 rounded bg-emerald-600 text-white font-bold transition">EVM</button>
+          <button id="toggleQuai" onclick="setCockpitEngine('quai')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-bold transition">QUAI</button>
+        </div>
+        <span id="subsystemBadge" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
           <span class="w-2 h-2 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-          VeroGuard Active (Foundry EVM)
+          VeroGuard Active (Standard EVM)
         </span>
       </div>
     </header>
@@ -135,6 +140,22 @@
   </div>
 
   <script>
+    let cockpitEngine = 'standard';
+    function setCockpitEngine(engine) {
+      cockpitEngine = engine;
+      const isQuai = engine === 'quai';
+      document.getElementById('toggleEvm').className = !isQuai ? 'px-2.5 py-1 rounded bg-emerald-600 text-white font-bold transition' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white font-bold transition';
+      document.getElementById('toggleQuai').className = isQuai ? 'px-2.5 py-1 rounded bg-cyan-600 text-white font-bold transition' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white font-bold transition';
+      const badge = document.getElementById('subsystemBadge');
+      if (isQuai) {
+        badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
+        badge.innerHTML = '<span class="w-2 h-2 mr-1.5 bg-cyan-400 rounded-full animate-pulse"></span>Quai Cyprus-1 Active [0,0] ($QUAI + $QI)';
+      } else {
+        badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        badge.innerHTML = '<span class="w-2 h-2 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span>VeroGuard Active (Standard EVM)';
+      }
+    }
+
     function runScenario(type) {
       const client = document.getElementById('clientDisplay');
       const vero = document.getElementById('veroDisplay');

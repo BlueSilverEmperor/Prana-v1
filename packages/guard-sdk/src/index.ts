@@ -1,7 +1,7 @@
 /**
  * @vero/guard-sdk
- * EIP-1193 provider wrapper that routes every transaction and signature through the Vero firewall.
- * Covers Features #17 (approval capping), #18 (permit decoding), #19 (revoke) and #45 (provider wrapper).
+ * Comprehensive EIP-1193 & Quai Pelagus Provider Wrapper, Retail Protection Guard & Permit2 Decoder.
+ * Covers Features #17, #18, #19, #45, and Quai Network native subsystem integration.
  *
  * Fail-closed by design: if the firewall cannot be reached, times out or answers with anything other
  * than a well-formed ALLOW, the request is rejected. Opt out only with `failOpen: true`.
@@ -35,6 +35,8 @@ export interface VeroGuardConfig {
   autoCapUnlimitedApprovals?: boolean; // Feature #17
   defaultSpendCap?: bigint; // cap used when spendCapForToken is not given
   spendCapForToken?: (token: string) => bigint; // per-token cap in the token's smallest unit
+  engineMode?: "standard" | "quai"; // Default: standard
+  shardZone?: string; // e.g. "cyprus1"
   onCapped?: (info: CapInfo) => Promise<boolean>; // return false to abort instead of sending the capped tx
   onWarning?: (warnings: string[], checksum: string) => Promise<boolean>; // return true to proceed
   onBlocked?: (flags: string[], warnings: string[]) => void;
@@ -54,9 +56,51 @@ export const UNLIMITED_THRESHOLD = 2n ** 128n; // same threshold the Vero engine
 export const DEFAULT_TIMEOUT_MS = 5000;
 export const DEFAULT_SPEND_CAP = 1000n * 10n ** 18n;
 
-const SEND_METHODS = new Set(["eth_sendTransaction", "eth_signTransaction"]);
-const TYPED_DATA_METHODS = new Set(["eth_signTypedData", "eth_signTypedData_v1", "eth_signTypedData_v3",
-  "eth_signTypedData_v4"]);
+export const QUAI_ZONE_PREFIXES: Record<string, string> = {
+  cyprus1: "0x00",
+  cyprus2: "0x01",
+  cyprus3: "0x02",
+  pitt1: "0x10",
+  pitt2: "0x11",
+  pitt3: "0x12",
+  paxos1: "0x20",
+  paxos2: "0x21",
+  paxos3: "0x22",
+};
+
+export function getQuaiShardZone(address: string): string {
+  if (!address || address.length < 4) return "unknown";
+  const clean = address.toLowerCase().replace("0x", "");
+  const prefix = "0x" + clean.slice(0, 2);
+  for (const [zone, p] of Object.entries(QUAI_ZONE_PREFIXES)) {
+    if (p.toLowerCase() === prefix) return zone;
+  }
+  return "external";
+}
+
+export function isPelagusAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean((window as any).pelagus);
+}
+
+export function detectQuaiProvider(): EIP1193Provider | null {
+  if (typeof window === "undefined") return null;
+  return (window as any).pelagus || null;
+}
+
+const SEND_METHODS = new Set([
+  "eth_sendTransaction",
+  "eth_signTransaction",
+  "quai_sendTransaction",
+  "quai_signTransaction",
+]);
+const TYPED_DATA_METHODS = new Set([
+  "eth_signTypedData",
+  "eth_signTypedData_v1",
+  "eth_signTypedData_v3",
+  "eth_signTypedData_v4",
+  "quai_signTypedData_v4",
+]);
 // These cannot be simulated from their parameters (raw bytes, blind hashes, batched calls).
 const UNVERIFIABLE_METHODS = new Set(["eth_sendRawTransaction", "eth_sign", "wallet_sendCalls"]);
 const DECISIONS = new Set(["ALLOW", "WARN", "BLOCK"]);
@@ -197,7 +241,8 @@ function validateResult(body: any): SimulationResult {
 /** Feature #45: EIP-1193 wrapper. */
 export class VeroGuardProvider implements EIP1193Provider {
   private readonly provider: EIP1193Provider;
-  private readonly config: Required<Omit<VeroGuardConfig, "spendCapForToken">> & Pick<VeroGuardConfig, "spendCapForToken">;
+  private readonly config: Required<Omit<VeroGuardConfig, "spendCapForToken" | "engineMode" | "shardZone">> &
+    Pick<VeroGuardConfig, "spendCapForToken" | "engineMode" | "shardZone">;
 
   constructor(provider: EIP1193Provider, config: VeroGuardConfig = {}) {
     this.provider = provider;
@@ -211,6 +256,8 @@ export class VeroGuardProvider implements EIP1193Provider {
       autoCapUnlimitedApprovals: config.autoCapUnlimitedApprovals ?? true,
       defaultSpendCap: config.defaultSpendCap ?? DEFAULT_SPEND_CAP,
       spendCapForToken: config.spendCapForToken,
+      engineMode: config.engineMode ?? "standard",
+      shardZone: config.shardZone ?? "cyprus1",
       onCapped: config.onCapped || (async () => true),
       onWarning: config.onWarning || (async () => false), // WARN needs an explicit yes
       onBlocked: config.onBlocked || (() => {}),
@@ -219,6 +266,8 @@ export class VeroGuardProvider implements EIP1193Provider {
 
   async request(args: RequestArguments): Promise<unknown> {
     const { method, params } = args;
+    const isQuai = method.startsWith("quai_") || this.config.engineMode === "quai";
+
     if (SEND_METHODS.has(method)) {
       const first = Array.isArray(params) ? params[0] : params;
       if (!first || typeof first !== "object") {
@@ -226,7 +275,7 @@ export class VeroGuardProvider implements EIP1193Provider {
       }
       const txParams: Record<string, any> = { ...(first as object) };
       await this.applyApprovalCap(txParams);
-      await this.interceptAndVerifyTransaction(txParams);
+      await this.interceptAndVerifyTransaction(txParams, isQuai);
       return this.provider.request({ method, params: [txParams] });
     }
     if (TYPED_DATA_METHODS.has(method)) {
@@ -265,17 +314,21 @@ export class VeroGuardProvider implements EIP1193Provider {
     }
   }
 
-  private async buildPayload(tx: Record<string, any>) {
+  private async buildPayload(tx: Record<string, any>, isQuai: boolean = false) {
     const value = parseAmount(tx.value ?? "0");
     if (value === null) {
       throw block(`Malformed transaction value: ${String(tx.value)}`, "MALFORMED_TRANSACTION", "Value is not an integer.");
     }
-    const chainId = parseAmount(tx.chainId ?? (await this.provider.request({ method: "eth_chainId" })));
-    if (chainId === null) {
-      throw block("Could not determine the chain id.", "MALFORMED_TRANSACTION", "Chain id is unknown.");
+    let chainIdNum = isQuai ? 15000 : 1;
+    if (tx.chainId !== undefined) {
+      const parsed = parseAmount(tx.chainId);
+      if (parsed !== null) chainIdNum = Number(parsed);
+    } else if (!isQuai) {
+      const chainId = parseAmount(await this.provider.request({ method: "eth_chainId" }));
+      if (chainId !== null) chainIdNum = Number(chainId);
     }
     return {
-      chain_id: Number(chainId),
+      chain_id: chainIdNum,
       safe_address: tx.from || "0x0000000000000000000000000000000000000000",
       to: tx.to || "0x0000000000000000000000000000000000000000",
       value: value.toString(),
@@ -284,11 +337,16 @@ export class VeroGuardProvider implements EIP1193Provider {
     };
   }
 
-  private async fetchVerdict(payload: object): Promise<SimulationResult | null> {
+  private async fetchVerdict(payload: object, isQuai: boolean = false): Promise<SimulationResult | null> {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (isQuai || this.config.engineMode === "quai") {
+        headers["X-Vero-Engine"] = "quai";
+      }
+
       const response = await fetch(`${this.config.firewallUrl}/v1/simulate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(this.config.timeoutMs),
       });
@@ -302,8 +360,8 @@ export class VeroGuardProvider implements EIP1193Provider {
     }
   }
 
-  private async interceptAndVerifyTransaction(tx: Record<string, any>): Promise<void> {
-    const result = await this.fetchVerdict(await this.buildPayload(tx));
+  private async interceptAndVerifyTransaction(tx: Record<string, any>, isQuai: boolean = false): Promise<void> {
+    const result = await this.fetchVerdict(await this.buildPayload(tx, isQuai), isQuai);
     if (result === null || result.decision === "ALLOW") return;
     const warnings = result.deterministic_human_warnings;
     if (result.decision === "BLOCK") {

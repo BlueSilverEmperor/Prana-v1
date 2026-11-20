@@ -1,5 +1,6 @@
 """FastAPI application entrypoint for Project Vero Firewall & Agent Core.
 Serves the Real-Time Transaction Firewall API, Mobile QR Verifier, Bytecode Hunter, and Interactive Web UI.
+Supports Dual-Mode Subsystem Switch: STANDARD_EVM vs. QUAI_NATIVE.
 """
 
 import html
@@ -15,7 +16,7 @@ from api_agents.routes.firewall_api import get_adapter, router as firewall_route
 
 app = FastAPI(
     title="Project Vero Firewall API",
-    description="Deterministic Transaction Simulation, EIP-712 Intent Guard, and Forensic Verification",
+    description="Deterministic Transaction Simulation, EIP-712 Intent Guard, Quai Subsystem & Forensic Verification",
     version="0.1.0",
 )
 
@@ -73,12 +74,15 @@ async def scan_bytecode_endpoint(req: BytecodeScanRequest):
 
 
 @app.get("/health")
-async def health_check():
+async def health_check(engine: Optional[str] = Query(None)):
+    engine_mode = engine or os.getenv("VERO_ENGINE_MODE", "STANDARD_EVM")
     return {
         "status": "healthy",
         "service": "api-agents",
         "version": "0.1.0",
         "engine": engine_name(get_adapter()),
+        "subsystem_mode": engine_mode.upper(),
+        "quai_shard": "cyprus1" if "QUAI" in engine_mode.upper() else "N/A",
     }
 
 
@@ -96,7 +100,9 @@ _VERIFY_PAGE = """<!DOCTYPE html>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-6">
   <div class="max-w-md w-full bg-[#111622] border border-blue-500/30 rounded-3xl p-6 space-y-5 text-center">
+    <div class="w-12 h-12 mx-auto rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center text-2xl border border-blue-500/30">📱</div>
     <h1 class="text-xl font-extrabold text-white">Vero Phone Verifier</h1>
+    {subsystem_badge}
     {body}
     <p class="text-[11px] text-slate-500">This page shows the words carried by the QR link. It does not
     re-simulate the transaction itself, so compare the words with your signing screen and reject on any mismatch.</p>
@@ -107,16 +113,21 @@ _VERIFY_PAGE = """<!DOCTYPE html>
 
 @app.get("/verify", response_class=HTMLResponse)
 async def mobile_verifier(words: Optional[str] = Query(None, max_length=120),
-                          tx: Optional[str] = Query(None, max_length=66)):
+                          tx: Optional[str] = Query(None, max_length=66),
+                          engine: Optional[str] = Query(None)):
     """Feature #09: phone-side display of the 4-word checksum carried by the QR link.
 
     Inputs come from a scanned link, so they are validated and HTML-escaped; invalid links are rejected.
     """
+    is_quai = str(engine).lower() in ("quai", "quai_native") or os.getenv("VERO_ENGINE_MODE", "").lower() == "quai"
+    subsystem_badge = ('<div class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">'
+                       f'Subsystem: {"Quai Cyprus-1 Shard [0,0]" if is_quai else "Standard EVM"}</div>')
+
     if not words or not tx or not WORDS_RE.match(words.strip().lower()) or not TX_HASH_RE.match(tx):
         body = ('<p class="text-red-400 font-bold">Invalid or incomplete verification link.</p>'
                 '<p class="text-xs text-slate-400">Expected four lowercase words and a 0x-prefixed 32-byte '
                 'transaction hash. Do not sign.</p>')
-        return HTMLResponse(_VERIFY_PAGE.format(body=body), status_code=400)
+        return HTMLResponse(_VERIFY_PAGE.format(body=body, subsystem_badge=subsystem_badge), status_code=400)
     display_words = " · ".join(re.split(r"[-\s·]+", words.strip().lower()))
     body = f"""<div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-2">
       <span class="text-[11px] uppercase tracking-wider text-blue-400 font-bold">4-Word Checksum</span>
@@ -125,4 +136,4 @@ async def mobile_verifier(words: Optional[str] = Query(None, max_length=120),
     <div class="text-left text-xs font-mono bg-white/5 p-3 rounded-xl">
       Safe Tx Hash: <span class="text-slate-200 break-all">{html.escape(tx)}</span>
     </div>"""
-    return HTMLResponse(_VERIFY_PAGE.format(body=body))
+    return HTMLResponse(_VERIFY_PAGE.format(body=body, subsystem_badge=subsystem_badge))
