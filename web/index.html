@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Saakshi (Witness) — Zero-Trust Transaction Firewall</title>
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@1.77.0/dist/umd/lucide.min.js"></script>
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
@@ -441,367 +441,388 @@
     </div>
   </div>
 
-  <!-- SCRIPT LOGIC: PRESETS, LOCAL/API SIMULATION, QR CODE, AND REVERTS -->
+  <!-- SCRIPT LOGIC: LIVE ENGINE VERDICTS, RECORDED FALLBACK, QR CODE, RECEIPTS -->
   <script>
-    // PRESET ATTACK DEFINITIONS
+    // The HUD asks the Vero firewall API for every verdict. When the page is served by the API
+    // itself, calls go to the same origin; from serve.py (port 3000) or file:// they go to :8000.
+    const API_BASE = (location.protocol === "file:" || location.port === "3000")
+      ? "http://localhost:8000" : location.origin;
+
+    const SAFE = "0x1111111111111111111111111111111111111111";
+    const USDT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+    const VENDOR = "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f";
+    const UNISWAP_ROUTER = "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45";
+    const PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3";
+    const ATTACKER_CONTRACT = "0xbadc0de0badc0de0badc0de0badc0de0badc0de0";
+    const PAY_VENDOR_100_USDT = { allowed_recipients: [VENDOR], allowed_tokens: [USDT], max_outflow_wei: "100000000" };
+
+    // Each preset sends real bytes to the engine. `recorded` is shown only when the API is offline,
+    // and is always labelled as a recorded result, never as a live verdict.
     const PRESETS = {
       wazirx: {
         title: "Vendor Payout (WazirX Attack)",
         claimedAction: "Send 100 USDT",
         claimedRecipient: "0x4f4f...4f4f (Bengaluru Vendor)",
-        calldata: "0x3659cfe6000000000000000000000000babababababababababababababababababababa",
-        selector: "0x3659cfe6 (upgradeTo)",
         badge: "WazirX Exploit Vector",
-        isMalicious: true,
-        riskScore: 95,
-        decision: "BLOCK",
-        flags: ["PROXY_UPGRADE_ATTEMPT", "STORAGE_SLOT_0_MUTATION", "UNDECLARED_CALLED_TARGET"],
-        warnings: [
-          "CRITICAL: Storage slot 0 implementation replacement! Calldata replaces Safe masterCopy logic with unverified bytecode.",
-          "Intent Policy Violation: Declared intent authorized 100 USDT payment, but execution performs a wallet code takeover."
-        ],
+        selector: "0x3659cfe6 (upgradeTo)",
+        tx: { to: SAFE, value: "0", operation: 0,
+              data: "0x3659cfe6000000000000000000000000babababababababababababababababababababa" },
+        declared: PAY_VENDOR_100_USDT,
         declaredDiff: "Outflow: 100 USDT to 0x4f4f...4f4f",
-        realDiff: "Outflow: 0 USDT (Fake Frontend Display)",
-        storageDiff: "Slot 0 Swapped: 0xbaba...baba",
-        checksum: "apple - bunker - orbit - flame"
+        recorded: { decision: "BLOCK", riskScore: 95, flags: ["PROXY_UPGRADE_ATTEMPT"],
+                    warnings: ["[R3] CRITICAL: Replaces the logic/implementation of the Safe (new: 0xbaba...baba)"],
+                    realDiff: "No asset movement", storageDiff: "IMPLEMENTATION_CHANGED: 0xbaba...baba" }
       },
       bybit: {
-        title: "Protocol Fee Rebate (Bybit Attack)",
-        claimedAction: "Claim 500 USDT Rebate",
-        claimedRecipient: "0xBybitProtocolRouter",
-        calldata: "0xf4f4f4f4000000000000000000000000badc0de000000000000000000000000000000001",
-        selector: "0xf4f4f4f4 (delegatecall)",
+        title: "Cold-to-Warm Transfer (Bybit Attack)",
+        claimedAction: "Move funds to warm wallet",
+        claimedRecipient: "Exchange warm wallet",
         badge: "Bybit Exploit Vector",
-        isMalicious: true,
-        riskScore: 98,
-        decision: "BLOCK",
-        flags: ["UNAUTHORIZED_DELEGATECALL", "THRESHOLD_MUTATION_ATTEMPT"],
-        warnings: [
-          "CRITICAL: Unauthorized DELEGATECALL to unverified target 0xbadc0de! Allows arbitrary state manipulation.",
-          "Threshold Tampering: Execution modifies multisig threshold from 3 down to 1."
-        ],
-        declaredDiff: "Inflow: +500 USDT Protocol Rebate",
-        realDiff: "Outflow: 0 USDT",
-        storageDiff: "Threshold Mutated: 3 -> 1 (Full Takeover)",
-        checksum: "dragon - velvet - harvest - timber"
+        selector: "0xa9059cbb (transfer) via DELEGATECALL",
+        tx: { to: ATTACKER_CONTRACT, value: "0", operation: 1,
+              data: "0xa9059cbb000000000000000000000000babababababababababababababababababababa0000000000000000000000000000000000000000000000000000000000000000" },
+        declared: { allowed_recipients: [], allowed_tokens: [], max_outflow_wei: "0" },
+        declaredDiff: "No outflow; routine internal transfer",
+        recorded: { decision: "BLOCK", riskScore: 95, flags: ["UNVERIFIED_DELEGATECALL"],
+                    warnings: ["[R4] CRITICAL: Execution results in delegatecall to unverified address 0xbadc...de0"],
+                    realDiff: "No asset movement", storageDiff: "Delegatecall can rewrite any Safe storage slot" }
       },
       permit2: {
-        title: "Uniswap V3 Token Approval",
-        claimedAction: "Approve 100 USDT",
-        claimedRecipient: "0xUniswapV3Permit2",
-        calldata: "0x095ea7b300000000000000000000000068b3465833fb72a70ecdf485e0e4c7bd8665fc45ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        selector: "0x095ea7b3 (approve)",
+        title: "Uniswap Token Approval (Permit2 Phishing)",
+        claimedAction: "Approve 100 USDT for Uniswap",
+        claimedRecipient: "Uniswap Router 0x68b3...fc45",
         badge: "Permit2 Phishing",
-        isMalicious: true,
-        riskScore: 85,
-        decision: "BLOCK",
-        flags: ["UNLIMITED_APPROVAL", "EXCEEDS_DECLARED_ALLOWANCE"],
-        warnings: [
-          "HIGH: Unlimited ERC-20 token approval requested (2^256 - 1) for spender 0x68b3...fc45.",
-          "Intent Policy Violation: Signer declared a maximum allowance of 100 USDT. Automatic capping required."
-        ],
-        declaredDiff: "Approval: Max 100 USDT to Uniswap",
-        realDiff: "Approval: UNLIMITED (1.15e77 USDT)",
-        storageDiff: "Spender Allowance: MAX_UINT256",
-        checksum: "falcon - silver - canyon - matrix"
+        selector: "0x87517c45 (Permit2.approve)",
+        tx: { to: PERMIT2, value: "0", operation: 0,
+              data: "0x87517c45000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0000000000000000000000000ffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000ffffffffffff" },
+        declared: { allowed_recipients: [UNISWAP_ROUTER], allowed_tokens: [USDT], max_outflow_wei: "100000000" },
+        declaredDiff: "Approval: max 100 USDT to Uniswap Router",
+        recorded: { decision: "BLOCK", riskScore: 95, flags: ["PERMIT_SIGNATURE"],
+                    warnings: ["[R2] CRITICAL: Signature permit (permit2-approve) lets 0xe0e0...e0e0 spend UNLIMITED USDT"],
+                    realDiff: "Permit2 allowance: UNLIMITED USDT to 0xe0e0...e0e0", storageDiff: "Control slots unchanged" }
       },
       benign: {
         title: "Monthly Cloud Provider Payment",
         claimedAction: "Send 100 USDT",
         claimedRecipient: "0x4f4f...4f4f (Bengaluru Vendor)",
-        calldata: "0xa9059cbb0000000000000000000000004f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f0000000000000000000000000000000000000000000000000000000005f5e100",
-        selector: "0xa9059cbb (transfer)",
         badge: "Clean Transaction",
-        isMalicious: false,
-        riskScore: 0,
-        decision: "ALLOW",
-        flags: [],
-        warnings: [
-          "VERIFIED: Transaction execution perfectly matches declared EIP-712 IntentPolicy.",
-          "No proxy slot, ownership, or unapproved token approvals detected."
-        ],
+        selector: "0xa9059cbb (transfer)",
+        tx: { to: USDT, value: "0", operation: 0,
+              data: "0xa9059cbb0000000000000000000000004f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f0000000000000000000000000000000000000000000000000000000005f5e100" },
+        declared: PAY_VENDOR_100_USDT,
         declaredDiff: "Outflow: 100 USDT to 0x4f4f...4f4f",
-        realDiff: "Outflow: 100 USDT to 0x4f4f...4f4f",
-        storageDiff: "Control Slots: Immutability Intact",
-        checksum: "beacon - summit - crystal - harbor"
+        recorded: { decision: "ALLOW", riskScore: 0, flags: [], warnings: [],
+                    realDiff: "-100 USDT to 0x4f4f...4f4f", storageDiff: "Control slots unchanged" }
       }
     };
 
-    let currentPreset = 'wazirx';
+    const STYLES = {
+      BLOCK: { card: "border-red-500", title: "TRANSACTION BLOCKED", titleColor: "text-red-500", icon: "shield-x",
+               tone: "red", subtitle: "Real effect differs from the declared intent." },
+      WARN:  { card: "border-amber-500", title: "REVIEW REQUIRED", titleColor: "text-amber-400", icon: "shield-alert",
+               tone: "amber", subtitle: "No blocking rule fired, but something needs a human look." },
+      ALLOW: { card: "border-emerald-500", title: "TRANSACTION VERIFIED", titleColor: "text-emerald-400", icon: "shield-check",
+               tone: "emerald", subtitle: "Execution matches the declared intent." }
+    };
+
+    let currentPreset = "wazirx";
+    let lastView = null;
+    let renderToken = 0;
     let qrcodeObj = null;
 
-    // INITIALIZATION
     window.onload = function() {
       lucide.createIcons();
       initQRCode();
       checkBackendHealth();
-      loadPreset('wazirx');
+      loadPreset("wazirx");
     };
 
     function initQRCode() {
       const qrContainer = document.getElementById("qrcode");
-      qrContainer.innerHTML = "";
+      qrContainer.replaceChildren();
       qrcodeObj = new QRCode(qrContainer, {
-        text: "https://saakshi.verify/v1?hash=0x9f8e3a1c&words=apple-bunker-orbit-flame",
-        width: 72,
-        height: 72,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
+        text: "https://saakshi.verify/v1", width: 72, height: 72,
+        colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M
       });
     }
 
-    // CHECK FASTAPI BACKEND AVAILABILITY
+    function shortAddr(a) {
+      return a && a.length === 42 ? `${a.slice(0, 6)}...${a.slice(-4)}` : (a || "");
+    }
+
+    function setBadge(el, text, ok) {
+      el.className = ok
+        ? "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+        : "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-slate-800 text-slate-400 border border-slate-700";
+      const dot = document.createElement("span");
+      dot.className = `w-2 h-2 rounded-full ${ok ? "bg-emerald-400" : "bg-slate-500"}`;
+      const label = document.createElement("span");
+      label.textContent = text;
+      el.replaceChildren(dot, label);
+    }
+
     async function checkBackendHealth() {
       const badge = document.getElementById("backendStatus");
       try {
-        const res = await fetch("http://localhost:8000/health", { method: 'GET', mode: 'cors' });
-        if (res.ok) {
-          badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-          badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>API Connected (Port 8000)</span>';
-          return true;
-        }
+        const res = await fetch(`${API_BASE}/health`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+        setBadge(badge, `API Connected (${body.engine || "unknown engine"})`, true);
+        return true;
       } catch (e) {
-        badge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-slate-800 text-slate-400 border border-slate-700";
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-500"></span><span>Standalone Engine Mode</span>';
+        setBadge(badge, "API offline: showing recorded results", false);
         return false;
       }
     }
 
-    // LOAD PRESET
-    function loadPreset(presetKey) {
-      currentPreset = presetKey;
-      const data = PRESETS[presetKey];
-
-      // Update Preset Buttons Styling
-      ['wazirx', 'bybit', 'permit2', 'benign'].forEach(k => {
-        const btn = document.getElementById(`btn-${k}`);
-        if (k === presetKey) {
-          btn.className = data.isMalicious
-            ? "px-3 py-1.5 rounded-md text-xs font-medium transition bg-red-600 text-white flex items-center gap-1.5 shadow"
-            : "px-3 py-1.5 rounded-md text-xs font-medium transition bg-emerald-600 text-white flex items-center gap-1.5 shadow";
-        } else {
-          btn.className = "px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5";
+    // Turns FastAPI error bodies ({detail: str | [{msg, loc}]}) into one readable line.
+    async function readApiError(res) {
+      try {
+        const body = await res.json();
+        if (typeof body.detail === "string") return body.detail;
+        if (Array.isArray(body.detail)) {
+          return body.detail.map(d => `${(d.loc || []).slice(1).join(".")}: ${d.msg}`).join("\n");
         }
+        return JSON.stringify(body);
+      } catch (e) {
+        return res.statusText || "unknown error";
+      }
+    }
+
+    function toView(body) {
+      const assets = body.state_diffs.filter(d => d.asset_type !== "STORAGE")
+        .map(d => `${d.delta_human}${d.to_address ? " to " + shortAddr(d.to_address) : ""}`);
+      const control = body.state_diffs.filter(d => d.asset_type === "STORAGE")
+        .map(d => `${d.delta_human}${d.to_address ? ": " + shortAddr(d.to_address) : ""}`);
+      return {
+        source: "live", decision: body.decision, riskScore: body.risk_score, flags: body.flags,
+        warnings: body.deterministic_human_warnings,
+        realDiff: assets.join("; ") || "No asset movement",
+        storageDiff: control.join("; ") || "Control slots unchanged",
+        checksum: body.four_word_checksum.split("-").join(" - "),
+        rawChecksum: body.four_word_checksum, latencyMs: body.simulation_ms,
+        rawTxHash: body.raw_tx_hash, intentDigest: body.intent_digest
+      };
+    }
+
+    async function evaluatePreset(key) {
+      const p = PRESETS[key];
+      try {
+        const res = await fetch(`${API_BASE}/v1/simulate`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chain_id: 1, safe_address: SAFE, nonce: 0, label: p.claimedAction,
+                                 declared_intent: p.declared, ...p.tx })
+        });
+        if (!res.ok) throw new Error(`API rejected the preset (HTTP ${res.status}): ${await readApiError(res)}`);
+        return toView(await res.json());
+      } catch (e) {
+        console.warn("Live verdict unavailable, using recorded result:", e);
+        return { ...p.recorded, source: "recorded", checksum: "unavailable offline", rawChecksum: "",
+                 latencyMs: null, reason: String(e.message || e) };
+      }
+    }
+
+    function renderLeftCard(p) {
+      document.getElementById("displayTitle").innerText = p.title;
+      document.getElementById("displayAction").innerText = p.claimedAction;
+      document.getElementById("displayRecipient").innerText = p.claimedRecipient;
+      document.getElementById("displayBadge").innerText = p.badge;
+      document.getElementById("rawCalldataText").innerText = p.tx.data;
+      document.getElementById("calldataSelector").innerText = p.selector;
+      document.getElementById("diffDeclared").innerText = p.declaredDiff;
+    }
+
+    function renderPresetButtons(activeKey, decision) {
+      ["wazirx", "bybit", "permit2", "benign"].forEach(k => {
+        const btn = document.getElementById(`btn-${k}`);
+        const color = decision === "BLOCK" ? "bg-red-600" : decision === "WARN" ? "bg-amber-600" : "bg-emerald-600";
+        btn.className = k === activeKey
+          ? `px-3 py-1.5 rounded-md text-xs font-medium transition ${color} text-white flex items-center gap-1.5 shadow`
+          : "px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5";
       });
+    }
 
-      // Update Left Deceptive Card
-      document.getElementById("displayTitle").innerText = data.title;
-      document.getElementById("displayAction").innerText = data.claimedAction;
-      document.getElementById("displayRecipient").innerText = data.claimedRecipient;
-      document.getElementById("displayBadge").innerText = data.badge;
-      document.getElementById("rawCalldataText").innerText = data.calldata;
-      document.getElementById("calldataSelector").innerText = data.selector;
+    // Warnings may contain token-controlled text (symbols), so they are inserted as text, never HTML.
+    function renderWarnings(view, tone) {
+      const items = view.warnings.length ? view.warnings : ["No rule fired: execution matches the declared intent."];
+      const nodes = items.map(w => {
+        const row = document.createElement("div");
+        row.className = `p-3 rounded-xl bg-${tone}-500/10 border-${tone}-500/30 text-${tone}-200 border text-xs flex items-start gap-2.5`;
+        const icon = document.createElement("i");
+        icon.setAttribute("data-lucide", tone === "emerald" ? "check-circle-2" : "alert-triangle");
+        icon.className = `w-4 h-4 text-${tone}-400 flex-shrink-0 mt-0.5`;
+        const text = document.createElement("p");
+        text.className = "mt-0.5 break-all";
+        text.textContent = w;
+        const wrap = document.createElement("div");
+        wrap.appendChild(text);
+        row.append(icon, wrap);
+        return row;
+      });
+      document.getElementById("warningsList").replaceChildren(...nodes);
+    }
 
-      // Update Right Saakshi HUD
-      const verdictCard = document.getElementById("verdictCard");
-      const verdictTitle = document.getElementById("verdictTitle");
-      const verdictSubtitle = document.getElementById("verdictSubtitle");
-      const riskScoreBadge = document.getElementById("riskScoreBadge");
-      const verdictIcon = document.getElementById("verdictIcon");
-      const iconContainer = document.getElementById("verdictIconContainer");
-
-      if (data.isMalicious) {
-        verdictCard.className = "bg-slate-900 rounded-2xl border-2 border-red-500 p-6 flex flex-col gap-5 shadow-2xl pulse-danger";
-        verdictTitle.innerText = "TRANSACTION BLOCKED";
-        verdictTitle.className = "text-2xl font-black text-red-500 tracking-tight";
-        verdictSubtitle.innerText = "Discrepancy detected between human declaration and EVM execution.";
-        riskScoreBadge.innerText = `RISK: ${data.riskScore}/100 (CRITICAL)`;
-        riskScoreBadge.className = "text-xs font-mono px-2 py-0.5 rounded font-bold bg-red-500/20 text-red-300 border border-red-500/30";
-        iconContainer.className = "w-12 h-12 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold text-2xl border border-red-500/40";
-        verdictIcon.setAttribute("data-lucide", "shield-x");
-      } else {
-        verdictCard.className = "bg-slate-900 rounded-2xl border-2 border-emerald-500 p-6 flex flex-col gap-5 shadow-2xl";
-        verdictTitle.innerText = "TRANSACTION VERIFIED";
-        verdictTitle.className = "text-2xl font-black text-emerald-400 tracking-tight";
-        verdictSubtitle.innerText = "Execution perfectly aligns with declared human intent.";
-        riskScoreBadge.innerText = "RISK: 0/100 (SAFE)";
-        riskScoreBadge.className = "text-xs font-mono px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        iconContainer.className = "w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-2xl border border-emerald-500/40";
-        verdictIcon.setAttribute("data-lucide", "shield-check");
-      }
-
-      // Update Warnings List
-      const warningsList = document.getElementById("warningsList");
-      warningsList.innerHTML = data.warnings.map(w => `
-        <div class="p-3 rounded-xl ${data.isMalicious ? 'bg-red-500/10 border-red-500/30 text-red-200' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'} border text-xs flex items-start gap-2.5">
-          <i data-lucide="${data.isMalicious ? 'alert-triangle' : 'check-circle-2'}" class="w-4 h-4 ${data.isMalicious ? 'text-red-400' : 'text-emerald-400'} flex-shrink-0 mt-0.5"></i>
-          <div><p class="mt-0.5">${w}</p></div>
-        </div>
-      `).join('');
-
-      // Update Diff Table
-      document.getElementById("diffDeclared").innerText = data.declaredDiff;
-      document.getElementById("diffReal").innerText = data.realDiff;
-      document.getElementById("diffStorage").innerText = data.storageDiff;
-
-      // Update Checksum and QR Code
-      document.getElementById("fourWordDisplay").innerText = data.checksum;
-      if (qrcodeObj) {
+    function renderVerdict(view) {
+      const s = STYLES[view.decision] || STYLES.WARN;
+      const label = view.decision === "BLOCK" ? (view.riskScore >= 95 ? "CRITICAL" : "HIGH")
+                  : view.decision === "WARN" ? "REVIEW" : "SAFE";
+      document.getElementById("verdictCard").className =
+        `bg-slate-900 rounded-2xl border-2 ${s.card} p-6 flex flex-col gap-5 shadow-2xl relative overflow-hidden transition-all duration-300${view.decision === "BLOCK" ? " pulse-danger" : ""}`;
+      const title = document.getElementById("verdictTitle");
+      title.innerText = s.title;
+      title.className = `text-2xl font-black ${s.titleColor} tracking-tight`;
+      document.getElementById("verdictSubtitle").innerText = view.source === "live"
+        ? `${s.subtitle} Live verdict from the Vero engine.`
+        : `RECORDED RESULT, NOT LIVE: the API is unreachable (${view.reason}).`;
+      const badge = document.getElementById("riskScoreBadge");
+      badge.innerText = `RISK: ${view.riskScore}/100 (${label})`;
+      badge.className = `text-xs font-mono px-2 py-0.5 rounded font-bold bg-${s.tone}-500/20 text-${s.tone}-300 border border-${s.tone}-500/30`;
+      document.getElementById("verdictIconContainer").className =
+        `w-12 h-12 rounded-xl bg-${s.tone}-500/20 text-${s.tone}-400 flex items-center justify-center font-bold text-2xl border border-${s.tone}-500/40`;
+      document.getElementById("verdictIcon").setAttribute("data-lucide", s.icon);
+      renderWarnings(view, s.tone);
+      document.getElementById("diffReal").innerText = view.realDiff;
+      document.getElementById("diffStorage").innerText = view.storageDiff;
+      document.getElementById("latencyDisplay").innerText = view.latencyMs == null ? "n/a (offline)" : `${view.latencyMs} ms`;
+      document.getElementById("fourWordDisplay").innerText = view.checksum;
+      document.getElementById("phoneWords").innerText = view.checksum;
+      document.getElementById("phoneReality").innerText = view.decision === "BLOCK"
+        ? `CRITICAL: ${view.storageDiff !== "Control slots unchanged" ? view.storageDiff : view.realDiff}`
+        : `${view.decision === "WARN" ? "REVIEW" : "SAFE"}: ${view.realDiff}`;
+      if (qrcodeObj && view.rawChecksum) {
         qrcodeObj.clear();
-        qrcodeObj.makeCode(`https://saakshi.verify/v1?words=${encodeURIComponent(data.checksum)}`);
+        qrcodeObj.makeCode(`https://saakshi.verify/v1?words=${encodeURIComponent(view.rawChecksum)}`);
       }
-
-      // Update Phone Modal Fields
-      document.getElementById("phoneWords").innerText = data.checksum;
-      document.getElementById("phoneReality").innerText = data.isMalicious ? "CRITICAL: " + data.storageDiff : "SAFE: 100 USDT Transfer";
-
       lucide.createIcons();
     }
 
-    // TOGGLE SPOOFED UI SWITCH
+    async function loadPreset(presetKey) {
+      currentPreset = presetKey;
+      const token = ++renderToken;  // ignore late answers if the user clicks another preset
+      const p = PRESETS[presetKey];
+      renderLeftCard(p);
+      const view = await evaluatePreset(presetKey);
+      if (token !== renderToken) return;
+      lastView = view;
+      renderPresetButtons(presetKey, view.decision);
+      renderVerdict(view);
+    }
+
     function toggleSpoofMode() {
       const isChecked = document.getElementById("spoofToggle").checked;
       const card = document.getElementById("deceptiveCard");
       const banner = document.getElementById("compromisedBanner");
       const statusText = document.getElementById("spoofStatusText");
-
-      if (isChecked) {
-        card.classList.add("border-red-500/50");
-        banner.classList.remove("hidden");
-        statusText.innerText = "COMPROMISED";
-        statusText.className = "text-xs font-bold font-mono text-red-400";
-      } else {
-        card.classList.remove("border-red-500/50");
-        banner.classList.add("hidden");
-        statusText.innerText = "CLEAN";
-        statusText.className = "text-xs font-bold font-mono text-emerald-400";
-      }
+      card.classList.toggle("border-red-500/50", isChecked);
+      banner.classList.toggle("hidden", !isChecked);
+      statusText.innerText = isChecked ? "COMPROMISED" : "CLEAN";
+      statusText.className = `text-xs font-bold font-mono ${isChecked ? "text-red-400" : "text-emerald-400"}`;
     }
 
     function toggleCalldataView() {
       const content = document.getElementById("calldataContent");
-      const text = document.getElementById("calldataToggleText");
-      if (content.classList.contains("hidden")) {
-        content.classList.remove("hidden");
-        text.innerText = "Hide Hex";
-      } else {
-        content.classList.add("hidden");
-        text.innerText = "Show Hex";
-      }
+      const hidden = content.classList.toggle("hidden");
+      document.getElementById("calldataToggleText").innerText = hidden ? "Show Hex" : "Hide Hex";
     }
 
     function triggerBlindSignWarning() {
-      if (PRESETS[currentPreset].isMalicious) {
-        alert("🚨 BLIND SIGNING TRAP!\n\nIn standard wallets (MetaMask/Safe), clicking this would sign the transaction and drain the wallet.\n\nNow, look to the right to see how Saakshi protects you!");
+      if (lastView && lastView.decision !== "ALLOW") {
+        alert("BLIND SIGNING TRAP!\n\nIn a standard wallet, clicking this signs the bytes shown on the left without explaining them.\n\nLook to the right to see what Saakshi found.");
       } else {
-        alert("✅ Transaction Verified: This transaction is clean and passes all intent rules.");
+        alert("Transaction verified: the real effect matches the declared intent.");
       }
     }
 
-    // CLIMAX: SIMULATE ON-CHAIN REVERT
     function simulateBroadcastAndRevert() {
-      const data = PRESETS[currentPreset];
-      if (!data.isMalicious) {
-        alert("✅ Execution Successful!\nVeroGuard post-check passed. 100 USDT transferred as declared.");
+      if (!lastView || lastView.decision !== "BLOCK") {
+        alert("Execution allowed: the guard post-check passes because the effect matches the declaration.");
         return;
       }
       document.getElementById("revertModal").classList.remove("hidden");
     }
 
-    function closeRevertModal() {
-      document.getElementById("revertModal").classList.add("hidden");
-    }
-
-    // PHONE VERIFIER MODAL
-    function openPhoneModal() {
-      document.getElementById("phoneModal").classList.remove("hidden");
-    }
-
-    function closePhoneModal() {
-      document.getElementById("phoneModal").classList.add("hidden");
-    }
-
-    // JUDGE SANDBOX DRAWER
-    function openJudgeSandbox() {
-      document.getElementById("judgeDrawer").classList.remove("hidden");
-    }
-
-    function closeJudgeSandbox() {
-      document.getElementById("judgeDrawer").classList.add("hidden");
-    }
+    function closeRevertModal() { document.getElementById("revertModal").classList.add("hidden"); }
+    function openPhoneModal() { document.getElementById("phoneModal").classList.remove("hidden"); }
+    function closePhoneModal() { document.getElementById("phoneModal").classList.add("hidden"); }
+    function openJudgeSandbox() { document.getElementById("judgeDrawer").classList.remove("hidden"); }
+    function closeJudgeSandbox() { document.getElementById("judgeDrawer").classList.add("hidden"); }
 
     async function executeSandboxSimulation() {
-      const target = document.getElementById("sandboxTarget").value;
-      const data = document.getElementById("sandboxData").value;
-      const val = document.getElementById("sandboxValue").value;
-
-      // Try calling FastAPI backend
+      const payload = {
+        chain_id: 1, safe_address: SAFE, nonce: 0,
+        to: document.getElementById("sandboxTarget").value.trim(),
+        data: document.getElementById("sandboxData").value.trim(),
+        value: document.getElementById("sandboxValue").value.trim() || "0"
+      };
+      let res;
       try {
-        const res = await fetch("http://localhost:8000/v1/simulate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chain_id: 1,
-            safe_address: "0x1111111111111111111111111111111111111111",
-            to: target,
-            value: val,
-            data: data,
-            nonce: 0
-          })
+        res = await fetch(`${API_BASE}/v1/simulate`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
         });
-
-        if (res.ok) {
-          const body = await res.json();
-          alert(`Sandbox Simulation Result:\n\nDecision: ${body.decision}\nRisk Score: ${body.risk_score}/100\nFlags: ${body.flags.join(', ')}\nChecksum: ${body.four_word_checksum}`);
-          closeJudgeSandbox();
-          return;
-        }
       } catch (e) {
-        // Fallback local logic
-        const isUpgrade = data.toLowerCase().includes("3659cfe6");
-        alert(`Sandbox Simulation (Local Fallback):\n\nDecision: ${isUpgrade ? 'BLOCK' : 'WARN'}\nRisk Score: ${isUpgrade ? '95/100' : '40/100'}\nFlags: ${isUpgrade ? 'PROXY_UPGRADE_ATTEMPT' : 'CUSTOM_CALLDATA'}\nChecksum: echo - tango - vapor - crown`);
-        closeJudgeSandbox();
+        alert(`Sandbox: the Vero API is not reachable at ${API_BASE}.\nStart it with:\n  cd api-agents && uvicorn api_agents.main:app --port 8000\n\nNo verdict was computed.`);
+        return;
       }
+      if (!res.ok) {
+        alert(`Sandbox: the API rejected this input (HTTP ${res.status}).\n\n${await readApiError(res)}`);
+        return;
+      }
+      const body = await res.json();
+      alert(`Sandbox Simulation Result (live engine)\n\nDecision: ${body.decision}\nRisk Score: ${body.risk_score}/100\nFlags: ${body.flags.join(", ") || "none"}\nChecksum: ${body.four_word_checksum}\n\n${body.deterministic_human_warnings.join("\n")}`);
+      closeJudgeSandbox();
     }
 
-    // CERT-In FORENSIC RECEIPT DOWNLOAD
-    function exportCertInReceipt() {
-      const data = PRESETS[currentPreset];
-      const receipt = {
-        compliance: "CERT-In Section 70B Cybersecurity Incident Report",
-        timestamp: new Date().toISOString(),
-        network: "Ethereum Mainnet (ChainId: 1)",
-        safeVault: "0x1111111111111111111111111111111111111111",
-        targetContract: "0xSafeProxy0000000000000000000000000000000",
-        calldataHash: "0x9f8e3a1c2d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a",
-        fourWordChecksum: data.checksum,
-        guardDecision: data.decision,
-        riskScore: data.riskScore,
-        vulnerabilityFlags: data.flags,
-        humanDeterministicWarnings: data.warnings,
-        onChainEnforcement: {
-          guardContract: "VeroGuard.sol (^0.8.20)",
-          revertSignature: "0xdbe73428",
-          revertReason: "ControlSlotMutated('masterCopy')"
-        },
-        cryptographicProof: {
-          scheme: "RFC 8032 Ed25519",
-          publicKey: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          signature: "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d"
-        }
-      };
-
-      const blob = new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" });
+    function downloadJson(obj, name) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CERT-In_Forensic_Receipt_${currentPreset}.json`;
+      a.download = name;
       a.click();
       URL.revokeObjectURL(url);
     }
 
-    // WEB SPEECH API: READ WARNINGS ALOUD
+    // Signed receipts come only from the API (/v1/audit-receipt). Offline exports are marked unsigned.
+    async function exportCertInReceipt() {
+      const p = PRESETS[currentPreset];
+      const v = lastView;
+      const base = {
+        compliance: "CERT-In Section 70B Cybersecurity Incident Report",
+        generatedAt: new Date().toISOString(), network: "Ethereum Mainnet (chainId 1)",
+        safeVault: SAFE, targetContract: p.tx.to, calldata: p.tx.data, operation: p.tx.operation,
+        decision: v ? v.decision : "UNKNOWN", riskScore: v ? v.riskScore : null,
+        flags: v ? v.flags : [], warnings: v ? v.warnings : []
+      };
+      if (v && v.source === "live") {
+        try {
+          const res = await fetch(`${API_BASE}/v1/audit-receipt`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chain_id: 1, safe_address: SAFE, target_contract: p.tx.to,
+                                   raw_tx_hash: v.rawTxHash, intent_hash: v.intentDigest,
+                                   four_word_checksum: v.rawChecksum, decision: v.decision,
+                                   risk_score: v.riskScore, flags: v.flags, human_warnings: v.warnings })
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${await readApiError(res)}`);
+          downloadJson({ ...base, signed: true, receipt: await res.json() }, `CERT-In_Forensic_Receipt_${currentPreset}.json`);
+          return;
+        } catch (e) {
+          base.signingError = String(e.message || e);
+        }
+      }
+      downloadJson({ ...base, signed: false,
+                     note: "UNSIGNED: the Vero API was unavailable, so no Ed25519 signature is attached." },
+                   `CERT-In_Forensic_Receipt_${currentPreset}_UNSIGNED.json`);
+    }
+
     function readWarningsAloud() {
-      if (!('speechSynthesis' in window)) {
+      if (!("speechSynthesis" in window)) {
         alert("Speech synthesis is not supported on this browser.");
         return;
       }
-      const data = PRESETS[currentPreset];
-      const textToRead = data.isMalicious
-        ? "Warning: Security alert. " + data.warnings.join(". ")
+      const v = lastView;
+      const textToRead = v && v.warnings.length
+        ? "Warning: security alert. " + v.warnings.map(w => w.replace(/^\[[^\]]+\]\s*/, "")).join(". ")
         : "Transaction verified. All security rules passed.";
-      
       const utterance = new SpeechSynthesisUtterance(textToRead);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;

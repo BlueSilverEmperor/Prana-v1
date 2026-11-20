@@ -11,6 +11,7 @@ import os
 import sys
 
 PORT = 3000
+HOST = "127.0.0.1"  # local only; the demo HUD should not be reachable from the venue Wi-Fi
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -19,11 +20,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def run():
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"\n=======================================================")
+    with socketserver.TCPServer((HOST, PORT), Handler) as httpd:
+        print("\n=======================================================")
         print(f"  SAAKSHI ZERO-TRUST DEMO HUD RUNNING ON PORT {PORT}")
         print(f"  URL: http://localhost:{PORT}")
-        print(f"=======================================================\n")
+        print("=======================================================\n")
         print("Press Ctrl+C to stop the server.\n")
         try:
             webbrowser.open(f"http://localhost:{PORT}")
