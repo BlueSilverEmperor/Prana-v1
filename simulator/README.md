@@ -94,3 +94,19 @@ unknown bridge destination, `DECODE` undecodable batch. HIGH and CRITICAL count 
   fails open (logged) when the node cannot serve the 24-hour-old block.
 - Fail-closed behaviour: known selectors with non-strict ABI arguments raise `DECODE` (CRITICAL); a reverted
   fork simulation raises `SIM-REVERTED` (HIGH) and falls back to calldata-predicted effects.
+
+## Firewall API integration (api-agents)
+
+`api-agents/api_agents/adapters/vero_engine_adapter.py` puts this engine behind the firewall API's
+`SimulatorProtocol` / `RuleEngineProtocol`. The REST routes and the MCP server both use it by default.
+
+| Env var | Effect |
+|---|---|
+| `VERO_ENGINE=real` (default) | Vero engine, static calldata analysis |
+| `VERO_ENGINE=mock` | Original `MockAdapter` (starts without the engine installed) |
+| `VERO_ANVIL_RPC=http://127.0.0.1:8545` | Fork simulation; if the node is unreachable the verdict falls back to static and carries `FORK_UNAVAILABLE` |
+
+`SimulateRequest` gained optional `operation` (0 CALL, 1 DELEGATECALL), `declared_intent`
+(`allowed_recipients`, `allowed_tokens`, `max_outflow_wei`) and `label`. Decision mapping: any HIGH/CRITICAL
+alert is BLOCK, MEDIUM is WARN, otherwise ALLOW. Flags use names such as `INFINITE_TOKEN_APPROVAL`,
+`MODULE_ENABLED`, `UNDECLARED_RECIPIENT`; warnings are prefixed with the rule id.

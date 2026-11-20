@@ -29,7 +29,7 @@ class TestFullIntegration(unittest.TestCase):
         simulate_payload = {
             "chain_id": 1,
             "safe_address": "0x1111111111111111111111111111111111111111",
-            "to": "0xSafeProxy0000000000000000000000000000000",
+            "to": "0x5afe000000000000000000000000000000000001",  # was non-hex "0xSafeProxy..."; real engine validates addresses
             "value": "0",
             "data": calldata,
             "nonce": 12,

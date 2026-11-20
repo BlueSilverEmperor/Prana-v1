@@ -4,7 +4,7 @@ Pydantic v2 domain schemas for Project Vero firewall API.
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DecisionEnum(str, Enum):
@@ -22,18 +22,47 @@ class StateDiff(BaseModel):
     delta_human: str = Field(..., description="Human-readable delta e.g. '-500 USDC' or 'OWNERSHIP_TRANSFERRED'")
 
 
+UINT256_LIMIT = 2**256
+UINT64_LIMIT = 2**64
+
+
 class SimulateRequest(BaseModel):
-    chain_id: int = Field(1, description="EVM chain ID (e.g., 1 for Mainnet, 11155111 for Sepolia)")
+    chain_id: int = Field(1, ge=0, lt=UINT64_LIMIT,
+                          description="EVM chain ID (e.g., 1 for Mainnet, 11155111 for Sepolia)")
     safe_address: str = Field(..., description="Safe multisig address or account abstraction wallet")
     to: str = Field(..., description="Target contract address")
-    value: str = Field("0", description="ETH value in wei")
+    value: str = Field("0", pattern=r"^[0-9]{1,78}$",
+                       description="ETH value in wei, as a decimal string (hex is rejected so the tx hash "
+                                   "and the engine always read the same number)")
     data: str = Field("0x", description="Calldata hex payload")
-    nonce: int = Field(0, description="Wallet/Safe nonce")
+    nonce: int = Field(0, ge=0, lt=UINT256_LIMIT, description="Wallet/Safe nonce")
     intent_hash: Optional[str] = Field(
         "0x0000000000000000000000000000000000000000000000000000000000000000",
         description="EIP-712 Intent digest hash if pre-declared"
     )
-    gas_limit: Optional[int] = Field(2000000, description="Gas limit for simulation")
+    gas_limit: Optional[int] = Field(2000000, ge=0, lt=UINT64_LIMIT, description="Gas limit for simulation")
+
+    @field_validator("value")
+    @classmethod
+    def _value_fits_uint256(cls, v: str) -> str:
+        if int(v) >= UINT256_LIMIT:
+            raise ValueError("value exceeds uint256")
+        return v
+
+    operation: int = Field(0, ge=0, le=1, description="0 = CALL, 1 = DELEGATECALL (Safe operation)")
+    declared_intent: Optional["DeclaredIntent"] = Field(
+        None, description="What the signer declared; enables undeclared-recipient and outflow-cap checks"
+    )
+    label: Optional[str] = Field(None, max_length=280, description="What the signing UI claimed the tx does")
+
+
+class DeclaredIntent(BaseModel):
+    allowed_recipients: List[str] = Field(default_factory=list, description="Addresses allowed to receive funds")
+    allowed_tokens: List[str] = Field(default_factory=list, description="Token addresses, or 'ETH'")
+    max_outflow_wei: str = Field("0", description="Per-asset ceiling in the asset's smallest unit")
+
+
+SimulateRequest.model_rebuild()
 
 
 class SimulateResponse(BaseModel):

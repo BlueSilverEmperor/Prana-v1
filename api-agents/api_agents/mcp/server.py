@@ -5,15 +5,16 @@ Exposes the tool `vero_simulate_and_verify` for agentic workflows (e.g. Claude, 
 
 import asyncio
 from typing import Any, Dict, Optional
-from api_agents.adapters.mock_adapter import MockAdapter
+from api_agents.adapters.factory import build_adapter
 from api_agents.models.schemas import SimulateRequest
 from api_agents.utils.four_word_checksum import compute_four_word_checksum
 from api_agents.utils.keccak import keccak256
 
 
 class VeroMCPToolServer:
-    def __init__(self, adapter: Optional[MockAdapter] = None):
-        self.adapter = adapter or MockAdapter(artificial_latency_ms=0.0)
+    def __init__(self, adapter: Optional[Any] = None):
+        # Same adapter selection as the REST API, so both channels return the same verdict.
+        self.adapter = adapter or build_adapter()
 
     async def vero_simulate_and_verify(
         self,

@@ -4,7 +4,8 @@ FastAPI application entrypoint for Project Vero Firewall & Agent Core.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api_agents.routes.firewall_api import router as firewall_router
+from api_agents.adapters.factory import engine_name
+from api_agents.routes.firewall_api import get_adapter, router as firewall_router
 
 app = FastAPI(
     title="Project Vero Firewall API",
@@ -29,5 +30,5 @@ async def health_check():
         "status": "healthy",
         "service": "api-agents",
         "version": "0.1.0",
-        "engine": "MockAdapter",
+        "engine": engine_name(get_adapter()),
     }

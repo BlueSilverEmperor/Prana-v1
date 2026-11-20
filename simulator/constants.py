@@ -25,7 +25,8 @@ GRIEFING_GAS_LIMIT = 2_000_000
 GRIEFING_CALLDATA_BYTES = 4
 DEFAULT_BLOCK_TIME_SECONDS = 12
 
-SEVERITY_WEIGHT = MappingProxyType({"CRITICAL": 60, "HIGH": 30, "MEDIUM": 10, "LOW": 3})
+# 0-100 scale shared with the firewall API: one CRITICAL alone scores 95, one HIGH 70.
+SEVERITY_WEIGHT = MappingProxyType({"CRITICAL": 95, "HIGH": 70, "MEDIUM": 30, "LOW": 5})
 SEVERITY_RANK = MappingProxyType({"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3})
 BLOCKING_SEVERITIES = frozenset({"CRITICAL", "HIGH"})
 

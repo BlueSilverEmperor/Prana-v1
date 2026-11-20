@@ -11,8 +11,10 @@ import time
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from api_agents.adapters.mock_adapter import MockAdapter, SIG_TRANSFER
+from api_agents.adapters.factory import build_adapter
+from api_agents.adapters.mock_adapter import SIG_TRANSFER
 from api_agents.adapters.simulator_protocol import RuleEngineProtocol, SimulatorProtocol
+from api_agents.adapters.errors import EngineInputError
 from api_agents.forensics.cert_in_exporter import create_forensic_receipt
 from api_agents.models.schemas import (
     AuditReceipt,
@@ -27,8 +29,12 @@ from api_agents.utils.keccak import keccak256
 
 router = APIRouter(prefix="/v1", tags=["Firewall"])
 
-# Dependency providers for easy injection
-_shared_adapter = MockAdapter(artificial_latency_ms=1.0)
+# Dependency providers for easy injection. Real Vero engine by default; VERO_ENGINE=mock for the mock.
+_shared_adapter = build_adapter()
+
+
+def get_adapter():
+    return _shared_adapter
 
 
 def get_simulator() -> SimulatorProtocol:
@@ -83,7 +89,10 @@ async def simulate_transaction(
     intent_hash = req.intent_hash or ("0x" + "00" * 32)
 
     # 2. State-diff simulation on EVM state fork
-    raw_sim = await simulator.simulate_tx(req)
+    try:
+        raw_sim = await simulator.simulate_tx(req)
+    except EngineInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # 3. Deterministic 12-rule evaluation
     eval_result = rule_engine.evaluate(raw_sim, req)
