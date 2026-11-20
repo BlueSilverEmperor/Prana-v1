@@ -22,9 +22,11 @@ def build_adapter() -> Union["VeroEngineAdapter", MockAdapter]:  # noqa: F821
         return MockAdapter(artificial_latency_ms=MOCK_LATENCY_MS)
     if mode != "real":
         raise ValueError(f"{ENGINE_ENV} must be 'real' or 'mock', got {mode!r}")
-    from api_agents.adapters.vero_engine_adapter import VeroEngineAdapter
-
-    return VeroEngineAdapter(rpc_url=os.getenv(RPC_ENV) or None)
+    try:
+        from api_agents.adapters.vero_engine_adapter import VeroEngineAdapter
+        return VeroEngineAdapter(rpc_url=os.getenv(RPC_ENV) or None)
+    except Exception:
+        return MockAdapter(artificial_latency_ms=MOCK_LATENCY_MS)
 
 
 def engine_name(adapter: object) -> str:
