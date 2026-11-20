@@ -62,8 +62,10 @@ contract VeroGuard is EIP712 {
     address public multiSend;
     address public governanceTimelock;
 
-    // Feature #27: Emergency Panic Freeze
+    // Feature #27: Emergency Panic Freeze with 48h Auto-Decay
     bool public paused;
+    uint256 public pausedAt;
+    uint256 public constant PAUSE_DURATION = 48 hours;
     uint256 public unpauseNonce;
 
     // Feature #37: Dead-Man's Switch
@@ -134,11 +136,21 @@ contract VeroGuard is EIP712 {
     }
 
     /**
+     * @notice Checks if the emergency freeze is currently active (with 48h auto-decay anti-griefing).
+     */
+    function isPaused() public view returns (bool) {
+        if (!paused) return false;
+        if (block.timestamp >= pausedAt + PAUSE_DURATION) return false;
+        return true;
+    }
+
+    /**
      * @notice Feature #27: Emergency Panic Freeze.
      * Any single verified multisig owner can freeze the guard immediately.
      */
     function emergencyPause() external {
         paused = true;
+        pausedAt = block.timestamp;
         emit EmergencyPaused(msg.sender);
     }
 
@@ -146,7 +158,7 @@ contract VeroGuard is EIP712 {
      * @notice Unpauses the guard. Requires M-of-N multisig signatures from the vault owners.
      */
     function unpause(address vault, bytes[] memory signatures) external {
-        require(paused, "Not paused");
+        require(isPaused(), "Not paused");
         IGuardedMultisig multisig = IGuardedMultisig(vault);
         uint256 reqThreshold = multisig.threshold();
         require(signatures.length >= reqThreshold, "Insufficient signatures");
@@ -170,7 +182,25 @@ contract VeroGuard is EIP712 {
         }
 
         paused = false;
+        pausedAt = 0;
         emit EmergencyUnpaused(msg.sender);
+    }
+
+    /**
+     * @notice Computes 4 BIP-39 word indices (0..2047) from transaction & policy hashes.
+     * Used by hardware devices and independent phone verifiers for out-of-band truth.
+     */
+    function computeChecksumWordIndices(
+        address vault,
+        uint256 nonce,
+        bytes32 safeTxHash,
+        bytes32 policyHash
+    ) external pure returns (uint16[4] memory indices) {
+        bytes32 digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash));
+        indices[0] = uint16(uint256(digest) & 0x7FF);
+        indices[1] = uint16((uint256(digest) >> 11) & 0x7FF);
+        indices[2] = uint16((uint256(digest) >> 22) & 0x7FF);
+        indices[3] = uint16((uint256(digest) >> 33) & 0x7FF);
     }
 
     /**
@@ -286,7 +316,7 @@ contract VeroGuard is EIP712 {
         address msgSender,
         IntentPolicy memory policy
     ) external view {
-        if (paused) revert GuardPaused();
+        if (isPaused()) revert GuardPaused();
         if (deadMansSwitchActive[policy.vault]) revert DeadMansSwitchActive(policy.vault);
 
         // Feature #14: Intent Expiry & State-Drift Lock

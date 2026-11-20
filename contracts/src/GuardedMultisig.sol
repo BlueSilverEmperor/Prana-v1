@@ -32,6 +32,10 @@ contract GuardedMultisig {
     mapping(address => uint256) public lastDailyReset;
     uint256 public dailySpendCap;
 
+    // Feature #35: AI Agent Velocity Limiter (Anti-Burst Protection)
+    mapping(address => uint256) public lastAgentTxTime;
+    uint256 public agentCooldown;
+
     // Registered modules
     mapping(address => bool) public isModuleEnabled;
 
@@ -43,6 +47,7 @@ contract GuardedMultisig {
     error DuplicateOrUnsortedOwners();
     error ModuleFirewallBlocked(bytes4 selector, address caller);
     error DailySpendCapExceeded(uint256 cap, uint256 requested);
+    error AgentCooldownActive(uint256 nextAllowedTime, uint256 currentTimestamp);
     error DeadMansSwitchActive(address vault);
     error ExecutionFailed();
     error UnauthorizedSweep();
@@ -104,6 +109,10 @@ contract GuardedMultisig {
 
     function setDailySpendCap(uint256 newCap) external onlyGovernance {
         dailySpendCap = newCap;
+    }
+
+    function setAgentCooldown(uint256 newCooldown) external onlyGovernance {
+        agentCooldown = newCooldown;
     }
 
     function setGuard(address newGuard) external onlyGovernance {
@@ -234,11 +243,19 @@ contract GuardedMultisig {
 
         // 1. Signature Verification
         if (policy.sessionKeyEnabled) {
-            // Feature #10: Session-Scoped Sub-Intent execution by sessionAgent
+            // Feature #10 & #35: Session-Scoped Sub-Intent execution by sessionAgent
             require(signatures.length >= 65, "Invalid signature length");
             bytes memory singleSig = signatures[:65];
             address recovered = ethSignedTxHash.recover(singleSig);
             require(recovered == policy.sessionAgent, "Invalid session agent signature");
+
+            // Velocity limiter: check cooldown between agent transactions
+            if (agentCooldown > 0 && lastAgentTxTime[policy.sessionAgent] > 0) {
+                if (block.timestamp < lastAgentTxTime[policy.sessionAgent] + agentCooldown) {
+                    revert AgentCooldownActive(lastAgentTxTime[policy.sessionAgent] + agentCooldown, block.timestamp);
+                }
+            }
+            lastAgentTxTime[policy.sessionAgent] = block.timestamp;
 
             // Check rolling 24-hour spend cap
             if (block.timestamp >= lastDailyReset[address(this)] + 1 days) {

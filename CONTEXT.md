@@ -31,7 +31,8 @@ Prana-v1/
 │   │   └── openzeppelin-contracts # OpenZeppelin Contracts v5.0.2 (EIP712, ECDSA, AccessControl)
 │   ├── src/
 │   │   ├── VeroGuard.sol          # Main on-chain guard (Pre-check, Post-check, Firewall, DMS)
-│   │   ├── GuardedMultisig.sol    # Core multisig vault (M-of-N threshold, Session keys, Slot tracking)
+│   │   ├── GuardedMultisig.sol    # Core multisig vault (M-of-N threshold, Session keys, Slot tracking, Agent Cooldown)
+│   │   ├── VeroSafeGuard.sol      # Drop-in Gnosis Safe (v1.3/v1.4) transaction guard adapter
 │   │   ├── GovernanceTimelock.sol # 24h delay timelock with single-signer veto
 │   │   ├── ThreatRegistry.sol     # Malicious address/selector registry & ERC-8176 attestations
 │   │   └── mocks/
@@ -39,13 +40,15 @@ Prana-v1/
 │   │       ├── MockWBTC.sol       # 8 decimals, standard ERC-20
 │   │       └── MultiSend.sol      # Gnosis Safe byte-packed recursive transaction executor
 │   ├── test/
-│   │   ├── ExploitReplays.t.sol   # 9 unit & exploit replay simulations (100% pass)
+│   │   ├── ExploitReplays.t.sol   # 13 unit & exploit replay simulations (100% pass)
 │   │   └── VeroInvariants.t.sol   # Foundry invariant fuzzing (256 runs, 12,800 calls, 0 reverts)
 │   └── script/
 │       └── DeployVero.s.sol       # Full system deployment and configuration script
 ├── shared/
-│   ├── abi.json                   # Consolidated ABIs for all 7 contracts
-│   └── schemas.py                 # Python canonical dataclasses, EIP-712 builder, & error signatures
+│   ├── abi.json                   # Consolidated ABIs for all 8 contracts
+│   ├── schemas.py                 # Python canonical dataclasses, EIP-712 builder, & error signatures
+│   ├── checksum.py                # 4-word dual-device BIP-39 checksum generator
+│   └── receipt.py                 # Automated forensic incident receipt generator for CERT-In & audit reporting
 ├── Saakshi_Blueprint.md           # 45-feature architectural blueprint specification
 ├── README.md                      # High-level overview & setup documentation
 └── CONTEXT.md                     # Comprehensive technical context (this document)

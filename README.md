@@ -22,7 +22,8 @@ In historic Web3 exploits such as **WazirX (July 2024)** and **Bybit (February 2
 contracts/
 ├── src/
 │   ├── VeroGuard.sol            # On-chain guard: EIP-712 intent verification, snapshots, firewall, dead-man's switch
-│   ├── GuardedMultisig.sol      # Threshold vault: session keys, rolling 24h spend cap, slot immutability
+│   ├── GuardedMultisig.sol      # Threshold vault: session keys, rolling 24h spend cap, slot immutability, agent cooldown
+│   ├── VeroSafeGuard.sol        # Drop-in Gnosis Safe (v1.3/v1.4) transaction guard adapter
 │   ├── GovernanceTimelock.sol   # 24-hour delay queue with single-signer veto
 │   ├── ThreatRegistry.sol       # Blacklist engine with ERC-8176 curator attestations
 │   └── mocks/
@@ -30,13 +31,15 @@ contracts/
 │       ├── MockWBTC.sol         # 8 Decimals, standard ERC-20
 │       └── MultiSend.sol        # Gnosis Safe byte-packed multi-call decoder
 ├── test/
-│   ├── ExploitReplays.t.sol     # 9 realistic end-to-end exploit replays & feature tests
+│   ├── ExploitReplays.t.sol     # 13 realistic end-to-end exploit replays & feature tests
 │   └── VeroInvariants.t.sol     # Foundry StdInvariant fuzz suite (256 runs, 12,800 calls)
 ├── script/
 │   └── DeployVero.s.sol         # Full system deployment and configuration script
 shared/
-├── abi.json                     # Synchronized ABIs for all smart contracts
-└── schemas.py                   # Canonical IntentPolicy dataclass, EIP-712 payload builder, & error signatures
+├── abi.json                     # Synchronized ABIs for all 8 smart contracts
+├── schemas.py                   # Canonical IntentPolicy dataclass, EIP-712 payload builder, & error signatures
+├── checksum.py                  # 4-word dual-device BIP-39 checksum generator
+└── receipt.py                   # Automated forensic incident receipt generator for CERT-In & audit reporting
 ```
 
 ---
@@ -93,16 +96,20 @@ cd contracts
 forge test -vvv
 ```
 
-### Exploit Replay Suite (`ExploitReplays.t.sol`) — 9/9 Passed
+### Exploit Replay Suite (`ExploitReplays.t.sol`) — 13/13 Passed
 - `test_WazirX_Slot0Swap_Blocked` [PASS]
 - `test_Bybit_DelegateCallOverwrite_Blocked` [PASS]
 - `test_MultiSend_HiddenBatchDrain_Blocked` [PASS]
 - `test_Permit2_PhishingReplay_Blocked` [PASS]
 - `test_EmergencyPause_And_Unpause` [PASS]
+- `test_EmergencyPause_48hAutoDecay` [PASS] (Anti-Griefing DoS defense)
 - `test_GovernanceTimelock_24hDelay_And_Veto` [PASS]
 - `test_ThreatRegistry_ERC8176_Attestations` [PASS]
 - `test_DeadMansSwitch_3Strikes_AutoSweep` [PASS]
 - `test_SessionScopedSubIntent_DailySpendCap` [PASS]
+- `test_AIAgent_VelocityCooldown` [PASS] (Anti-Burst Autonomous Bot Guardrail)
+- `test_4WordChecksum_Derivation` [PASS] (BIP-39 Dual-Device Verifier)
+- `test_VeroSafeGuard_Adapter_Deployment` [PASS] (Gnosis Safe v1.3/v1.4 Drop-In Adapter)
 
 ### Invariant Fuzzing (`VeroInvariants.t.sol`) — 4/4 Invariants Passed
 - **Runs:** 256 | **Calls:** 12,800 | **Reverts:** 0
