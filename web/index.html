@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Saakshi (Witness) — Zero-Trust Transaction Firewall</title>
+  <title>Vero — Zero-Trust Transaction Firewall</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <!-- Lucide Icons -->
@@ -52,12 +52,12 @@
   <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-black text-black text-xl shadow-lg shadow-emerald-500/20">
-        स
+        V
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-lg font-extrabold tracking-tight">SAAKSHI <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono font-medium border border-emerald-500/30">v3.1 Zero-Trust</span></h1>
-          <span class="text-xs text-slate-400">| Project Vero</span>
+          <h1 class="text-lg font-extrabold tracking-tight">VERO <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono font-medium border border-emerald-500/30">v3.1 Zero-Trust</span></h1>
+          <span class="text-xs text-slate-400">| Transaction Firewall</span>
         </div>
         <p class="text-xs text-slate-400">Track 02: Cybersecurity & Blockchain • Problem B1: "Know What You're Signing"</p>
       </div>
@@ -201,7 +201,7 @@
           <button onclick="triggerBlindSignWarning()" class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]">
             <i data-lucide="key" class="w-4 h-4"></i> Sign with Hardware Wallet
           </button>
-          <p class="text-[11px] text-center text-slate-500">Without Saakshi, signers approve the green button blindly.</p>
+          <p class="text-[11px] text-center text-slate-500">Without Vero, signers approve the green button blindly.</p>
         </div>
       </div>
 
@@ -219,12 +219,12 @@
       </div>
     </div>
 
-    <!-- RIGHT COLUMN: SAAKSHI ZERO-TRUST HUD (THE REALITY & ENFORCEMENT) -->
+    <!-- RIGHT COLUMN: VERO ZERO-TRUST HUD (THE REALITY & ENFORCEMENT) -->
     <div class="lg:col-span-7 flex flex-col gap-5">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-          Step 2 & 3: Saakshi Pre-Execution Truth Engine
+          Step 2 & 3: Vero Pre-Execution Truth Engine
         </h2>
         <span class="text-xs font-mono text-emerald-400">Deterministic EVM Replay</span>
       </div>
@@ -541,7 +541,7 @@
       const qrContainer = document.getElementById("qrcode");
       qrContainer.replaceChildren();
       qrcodeObj = new QRCode(qrContainer, {
-        text: "https://saakshi.verify/v1", width: 72, height: 72,
+        text: "https://vero.verify/v1", width: 72, height: 72,
         colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M
       });
     }
@@ -691,7 +691,7 @@
         : `${view.decision === "WARN" ? "REVIEW" : "SAFE"}: ${view.realDiff}`;
       if (qrcodeObj && view.rawChecksum) {
         qrcodeObj.clear();
-        qrcodeObj.makeCode(`https://saakshi.verify/v1?words=${encodeURIComponent(view.rawChecksum)}`);
+        qrcodeObj.makeCode(`https://vero.verify/v1?words=${encodeURIComponent(view.rawChecksum)}`);
       }
       lucide.createIcons();
     }
@@ -727,7 +727,7 @@
 
     function triggerBlindSignWarning() {
       if (lastView && lastView.decision !== "ALLOW") {
-        alert("BLIND SIGNING TRAP!\n\nIn a standard wallet, clicking this signs the bytes shown on the left without explaining them.\n\nLook to the right to see what Saakshi found.");
+        alert("BLIND SIGNING TRAP!\n\nIn a standard wallet, clicking this signs the bytes shown on the left without explaining them.\n\nLook to the right to see what Vero found.");
       } else {
         alert("Transaction verified: the real effect matches the declared intent.");
       }

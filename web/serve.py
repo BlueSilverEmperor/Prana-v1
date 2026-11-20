@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple local server for Saakshi / Project Vero Web HUD.
+Simple local server for the Vero web HUD.
 Runs on http://localhost:3000
 """
 
@@ -22,7 +22,7 @@ def run():
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((HOST, PORT), Handler) as httpd:
         print("\n=======================================================")
-        print(f"  SAAKSHI ZERO-TRUST DEMO HUD RUNNING ON PORT {PORT}")
+        print(f"  VERO ZERO-TRUST DEMO HUD RUNNING ON PORT {PORT}")
         print(f"  URL: http://localhost:{PORT}")
         print("=======================================================\n")
         print("Press Ctrl+C to stop the server.\n")
