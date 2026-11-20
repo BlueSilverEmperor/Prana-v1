@@ -1,0 +1,789 @@
+{
+  "metrics": {
+    "totalScenarios": 55,
+    "detectionRate": 1.0,
+    "blockRate": 1.0,
+    "falsePositiveRate": 0.0,
+    "p95LatencyMs": 0.195,
+    "confidenceIntervals": {
+      "detectionRate95": [
+        0.8865,
+        1.0
+      ],
+      "blockRate95": [
+        0.8865,
+        1.0
+      ],
+      "falsePositiveRate95": [
+        0.0,
+        0.1332
+      ]
+    },
+    "p50LatencyMs": 0.094,
+    "mode": "static"
+  },
+  "mode": "static",
+  "ruleAttribution": {
+    "successes": 30,
+    "trials": 30,
+    "rate": 1.0,
+    "ci95": [
+      0.8865,
+      1.0
+    ]
+  },
+  "baselines": [
+    {
+      "name": "plain-wallet",
+      "detection": {
+        "successes": 0,
+        "trials": 30,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1135
+        ]
+      },
+      "block": {
+        "successes": 0,
+        "trials": 30,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1135
+        ]
+      },
+      "false_positive": {
+        "successes": 0,
+        "trials": 25,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1332
+        ]
+      }
+    },
+    {
+      "name": "static-blocklist",
+      "detection": {
+        "successes": 3,
+        "trials": 30,
+        "rate": 0.1,
+        "ci95": [
+          0.0346,
+          0.2562
+        ]
+      },
+      "block": {
+        "successes": 3,
+        "trials": 30,
+        "rate": 0.1,
+        "ci95": [
+          0.0346,
+          0.2562
+        ]
+      },
+      "false_positive": {
+        "successes": 0,
+        "trials": 25,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1332
+        ]
+      }
+    },
+    {
+      "name": "warnings-only",
+      "detection": {
+        "successes": 30,
+        "trials": 30,
+        "rate": 1.0,
+        "ci95": [
+          0.8865,
+          1.0
+        ]
+      },
+      "block": {
+        "successes": 0,
+        "trials": 30,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1135
+        ]
+      },
+      "false_positive": {
+        "successes": 0,
+        "trials": 25,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1332
+        ]
+      }
+    },
+    {
+      "name": "full-vero",
+      "detection": {
+        "successes": 30,
+        "trials": 30,
+        "rate": 1.0,
+        "ci95": [
+          0.8865,
+          1.0
+        ]
+      },
+      "block": {
+        "successes": 30,
+        "trials": 30,
+        "rate": 1.0,
+        "ci95": [
+          0.8865,
+          1.0
+        ]
+      },
+      "false_positive": {
+        "successes": 0,
+        "trials": 25,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1332
+        ]
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "h01",
+      "set": "heldout",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.722
+    },
+    {
+      "id": "h02",
+      "set": "heldout",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R4"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.206
+    },
+    {
+      "id": "h03",
+      "set": "heldout",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.159
+    },
+    {
+      "id": "h04",
+      "set": "heldout",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.111
+    },
+    {
+      "id": "h05",
+      "set": "heldout",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R5"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.058
+    },
+    {
+      "id": "h06",
+      "set": "heldout",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.174
+    },
+    {
+      "id": "h07",
+      "set": "heldout",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.072
+    },
+    {
+      "id": "h08",
+      "set": "heldout",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.103
+    },
+    {
+      "id": "h09",
+      "set": "heldout",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.101
+    },
+    {
+      "id": "h10",
+      "set": "heldout",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.147
+    },
+    {
+      "id": "b01",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.065
+    },
+    {
+      "id": "b02",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.057
+    },
+    {
+      "id": "b03",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.07
+    },
+    {
+      "id": "b04",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.174
+    },
+    {
+      "id": "b05",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.135
+    },
+    {
+      "id": "b06",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [
+        "R7"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.096
+    },
+    {
+      "id": "b07",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.093
+    },
+    {
+      "id": "b08",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.161
+    },
+    {
+      "id": "b09",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.066
+    },
+    {
+      "id": "b10",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.053
+    },
+    {
+      "id": "b11",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.098
+    },
+    {
+      "id": "b12",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.066
+    },
+    {
+      "id": "b13",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.062
+    },
+    {
+      "id": "b14",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.063
+    },
+    {
+      "id": "b15",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.061
+    },
+    {
+      "id": "b16",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.074
+    },
+    {
+      "id": "b17",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.066
+    },
+    {
+      "id": "b18",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.182
+    },
+    {
+      "id": "b19",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.049
+    },
+    {
+      "id": "b20",
+      "set": "main",
+      "label": "benign",
+      "flagged": false,
+      "registry_hit": false,
+      "fired": [],
+      "expected_matched": true,
+      "latency_ms": 0.025
+    },
+    {
+      "id": "m01",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.095
+    },
+    {
+      "id": "m02",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.092
+    },
+    {
+      "id": "m03",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.101
+    },
+    {
+      "id": "m04",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.159
+    },
+    {
+      "id": "m05",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R2"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.13
+    },
+    {
+      "id": "m06",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": true,
+      "fired": [
+        "R12",
+        "R2"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.221
+    },
+    {
+      "id": "m07",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R3"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.082
+    },
+    {
+      "id": "m08",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R4"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.061
+    },
+    {
+      "id": "m09",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R5"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.062
+    },
+    {
+      "id": "m10",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R6"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.042
+    },
+    {
+      "id": "m11",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R7"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.071
+    },
+    {
+      "id": "m12",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": true,
+      "fired": [
+        "R12",
+        "R8"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.066
+    },
+    {
+      "id": "m13",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "B26-VAULT-SHARE",
+        "R10",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.19
+    },
+    {
+      "id": "m14",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R11",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.094
+    },
+    {
+      "id": "m15",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "P33-POISON"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.115
+    },
+    {
+      "id": "m16",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R10"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.074
+    },
+    {
+      "id": "m17",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "R10",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.1
+    },
+    {
+      "id": "m18",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": true,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "R12",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.126
+    },
+    {
+      "id": "m19",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R5"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.09
+    },
+    {
+      "id": "m20",
+      "set": "main",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "R9"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.182
+    },
+    {
+      "id": "p01",
+      "set": "public",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R3"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.075
+    },
+    {
+      "id": "p02",
+      "set": "public",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R4"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.061
+    },
+    {
+      "id": "p03",
+      "set": "public",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R5"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.113
+    },
+    {
+      "id": "p04",
+      "set": "public",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "R1"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.151
+    },
+    {
+      "id": "p05",
+      "set": "public",
+      "label": "malicious",
+      "flagged": true,
+      "registry_hit": false,
+      "fired": [
+        "B26-FIRST-RECIPIENT",
+        "P33-POISON"
+      ],
+      "expected_matched": true,
+      "latency_ms": 0.151
+    }
+  ]
+}

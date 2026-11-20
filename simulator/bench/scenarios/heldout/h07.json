@@ -1,0 +1,59 @@
+{
+  "id": "h07",
+  "set": "heldout",
+  "label": "benign",
+  "category": "transfer",
+  "title": "Checksummed mixed-case addresses",
+  "request": {
+    "chainId": 1,
+    "safeAddress": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "transactions": [
+      {
+        "to": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "value": "0",
+        "data": "0xa9059cbb0000000000000000000000004f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f0000000000000000000000000000000000000000000000000000000001312d00",
+        "operation": 0
+      }
+    ],
+    "intentPolicy": {
+      "allowedRecipients": [
+        "0x4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F4F"
+      ],
+      "maxOutflowWei": "20000000",
+      "allowedTokens": [
+        "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+      ]
+    }
+  },
+  "context": {
+    "now": 1763600000,
+    "threatRegistry": [
+      "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4"
+    ],
+    "contacts": [
+      "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+      "0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "0x1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f"
+    ],
+    "recipientHistory": [
+      "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+      "0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "0x2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c",
+      "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+    ],
+    "safeBalances": {
+      "0xdac17f958d2ee523a2206206994597c13d831ec7": "1000000000000",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "500000000000",
+      "ETH": "200000000000000000000"
+    },
+    "tokenMeta": {
+      "0xfafafafafafafafafafafafafafafafafafafafa": {
+        "symbol": "USDC",
+        "decimals": 6
+      }
+    }
+  },
+  "expectedRules": [],
+  "source": null,
+  "author": "PLACEHOLDER - replace with outside author"
+}

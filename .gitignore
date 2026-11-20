@@ -23,3 +23,13 @@ Thumbs.db
 
 # Large binaries / Temporary documents
 *.tmp
+
+# Python test / coverage artefacts
+.coverage
+.pytest_cache/
+htmlcov/
+*.egg-info/
+
+# Foundry outputs for simulator integration fixtures
+tests/integration/contracts/out/
+tests/integration/contracts/cache/

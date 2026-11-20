@@ -1,0 +1,61 @@
+{
+  "id": "m05",
+  "set": "main",
+  "label": "malicious",
+  "category": "approvals",
+  "title": "Permit2 unlimited approval for one year",
+  "request": {
+    "chainId": 1,
+    "safeAddress": "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "transactions": [
+      {
+        "to": "0x000000000022d473030f116ddee9f6b43ac78ba3",
+        "value": "0",
+        "data": "0x87517c45000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec7000000000000000000000000e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0000000000000000000000000ffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000006aff9a00",
+        "operation": 0
+      }
+    ],
+    "intentPolicy": {
+      "allowedRecipients": [
+        "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f"
+      ],
+      "maxOutflowWei": "100000000",
+      "allowedTokens": [
+        "0xdac17f958d2ee523a2206206994597c13d831ec7"
+      ]
+    }
+  },
+  "context": {
+    "now": 1763600000,
+    "threatRegistry": [
+      "0xd4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4"
+    ],
+    "contacts": [
+      "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+      "0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "0x1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f"
+    ],
+    "recipientHistory": [
+      "0x4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+      "0x7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+      "0x2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c",
+      "0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+    ],
+    "safeBalances": {
+      "0xdac17f958d2ee523a2206206994597c13d831ec7": "1000000000000",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "500000000000",
+      "ETH": "200000000000000000000"
+    },
+    "tokenMeta": {
+      "0xfafafafafafafafafafafafafafafafafafafafa": {
+        "symbol": "USDC",
+        "decimals": 6
+      }
+    }
+  },
+  "expectedRules": [
+    "R2"
+  ],
+  "source": null,
+  "author": "team"
+}

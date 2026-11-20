@@ -1,0 +1,31 @@
+[project]
+name = "vero-simulator"
+version = "0.1.0"
+description = "Project Vero: EVM simulation and deterministic risk engine (Person 2 scope)"
+requires-python = ">=3.11"
+dependencies = [
+  "web3>=7",
+  "eth-abi>=5",
+  "eth-account>=0.13",
+  "pydantic>=2.6",
+  "numpy>=1.26",
+  "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-cov>=5"]
+
+[project.scripts]
+vero-eval = "simulator.bench.run_eval:main"
+
+[tool.setuptools.packages.find]
+include = ["shared*", "simulator*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["shared", "simulator"]
+omit = ["simulator/bench/build_scenarios.py"]
