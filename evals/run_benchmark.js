@@ -37,10 +37,15 @@ const BASELINE_LABELS = {
   "full-vero": "Full Vero",
 };
 
-// Try interpreters in order: $PYTHON, the repo venv, python3, python (macOS ships only python3).
+// Try interpreters in order: $PYTHON, the repo venv, python/python3.
 function pythonCandidates() {
-  const venv = path.join(REPO_ROOT, ".venv", "bin", "python");
-  return [process.env.PYTHON, fs.existsSync(venv) ? venv : null, "python3", "python"].filter(Boolean);
+  const venv = process.platform === "win32"
+    ? path.join(REPO_ROOT, ".venv", "Scripts", "python.exe")
+    : path.join(REPO_ROOT, ".venv", "bin", "python");
+  const candidates = process.platform === "win32"
+    ? [process.env.PYTHON, fs.existsSync(venv) ? venv : null, "python", "python3"]
+    : [process.env.PYTHON, fs.existsSync(venv) ? venv : null, "python3", "python"];
+  return candidates.filter(Boolean);
 }
 
 function runWith(cmd) {
@@ -51,8 +56,14 @@ function runWith(cmd) {
     py.stdout.on("data", (d) => { stdout += d.toString(); });
     py.stderr.on("data", (d) => { stderr += d.toString(); });
     py.on("error", (err) => reject(Object.assign(err, { notFound: err.code === "ENOENT" })));
-    py.on("close", (code) => (code === 0 ? resolve(stdout)
-      : reject(new Error(`${cmd} -m simulator.bench.run_eval exited ${code}: ${stderr.trim()}`))));
+    py.on("close", (code) => {
+      if (code === 0) return resolve(stdout);
+      const err = new Error(`${cmd} -m simulator.bench.run_eval exited ${code}: ${stderr.trim()}`);
+      if (code === 9009 || stderr.includes("Python was not found")) {
+        err.notFound = true;
+      }
+      reject(err);
+    });
   });
 }
 
