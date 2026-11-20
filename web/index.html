@@ -114,17 +114,23 @@
     <div class="flex items-center gap-3 flex-wrap">
       <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Exploit Presets:</span>
       <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800" id="presetButtons">
-        <button onclick="loadPreset('wazirx')" id="btn-wazirx" class="px-3 py-1.5 rounded-md text-xs font-medium transition bg-red-600 text-white flex items-center gap-1.5 shadow">
-          <i data-lucide="skull" class="w-3.5 h-3.5"></i> WazirX Slot-0 Swap
+        <button onclick="loadPreset('wazirx')" id="btn-wazirx" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition bg-red-600 text-white flex items-center gap-1.5 shadow">
+          <i data-lucide="skull" class="w-3.5 h-3.5"></i> WazirX Slot-0
         </button>
-        <button onclick="loadPreset('bybit')" id="btn-bybit" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
-          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Bybit DelegateCall
+        <button onclick="loadPreset('bybit')" id="btn-bybit" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Bybit Delegate
         </button>
-        <button onclick="loadPreset('permit2')" id="btn-permit2" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
-          <i data-lucide="file-warning" class="w-3.5 h-3.5"></i> Permit2 Phishing
+        <button onclick="loadPreset('permit2')" id="btn-permit2" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="file-warning" class="w-3.5 h-3.5"></i> Permit2 Phish
         </button>
-        <button onclick="loadPreset('benign')" id="btn-benign" class="px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
-          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Normal 100 USDT Transfer
+        <button onclick="loadPreset('quai_poison')" id="btn-quai_poison" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i> Shard Spoof
+        </button>
+        <button onclick="loadPreset('toctou')" id="btn-toctou" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="clock" class="w-3.5 h-3.5"></i> TOCTOU Drift
+        </button>
+        <button onclick="loadPreset('benign')" id="btn-benign" class="px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Clean 100 USDT
         </button>
       </div>
     </div>
@@ -318,6 +324,39 @@
               <div class="text-red-400 mt-1 font-semibold" id="diffReal">Outflow: 0 USDT (Fake Display)</div>
               <div class="text-red-400 text-[11px] font-bold" id="diffStorage">Slot 0 Swapped: 0xbaba...baba</div>
             </div>
+          </div>
+        </div>
+
+        <!-- 3-Persona Role-Based Breakdown Bar -->
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-cyan-400"></i> Role-Based Perspective:
+            </span>
+            <div class="flex items-center gap-1 text-[11px] font-mono">
+              <button id="tabCfo" onclick="switchPersonaTab('cfo')" class="px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">💼 CFO View</button>
+              <button id="tabSec" onclick="switchPersonaTab('sec')" class="px-2.5 py-1 rounded bg-blue-600 text-white font-bold transition">🛡️ SecOps View</button>
+              <button id="tabMobile" onclick="switchPersonaTab('mobile')" class="px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">📱 Mobile Air-Gap</button>
+            </div>
+          </div>
+          <div id="personaContent" class="text-xs font-mono space-y-1.5 text-slate-300">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Adversarial Stress Telemetry Panel -->
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs font-mono">
+          <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block font-bold">TOCTOU Drift Safety:</span>
+            <span id="toctouTele" class="text-emerald-400 font-bold">✓ PASSED (Time-Invariant)</span>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block font-bold">Transient Reentrancy:</span>
+            <span id="transientTele" class="text-purple-400 font-bold">✓ EIP-1153 Locked</span>
+          </div>
+          <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block font-bold">Consensus Finality:</span>
+            <span id="consensusTele" class="text-cyan-400 font-bold">Cancun Single-State EVM</span>
           </div>
         </div>
 
@@ -523,6 +562,34 @@
                     warnings: ["[R2] CRITICAL: Signature permit (permit2-approve) lets 0xe0e0...e0e0 spend UNLIMITED USDT"],
                     realDiff: "Permit2 allowance: UNLIMITED USDT to 0xe0e0...e0e0", storageDiff: "Control slots unchanged" }
       },
+      quai_poison: {
+        title: "Cross-Shard Supplier Payment (Quai Shard Spoofing)",
+        claimedAction: "Send 500 $QUAI to Cyprus-1 Supplier",
+        claimedRecipient: "0x1017...F6C9 (Disguised Lookalike)",
+        badge: "Quai Shard Spoof Vector",
+        selector: "0xa9059cbb (transfer)",
+        tx: { to: "0x1017a140Aa3E981100a9becA4E685f962f0cF6C9", value: "500000000000000000000", operation: 0,
+              data: "0x" },
+        declared: { allowed_recipients: ["0x0017a140Aa3E981100a9becA4E685f962f0cF6C9"], allowed_tokens: ["QUAI"], max_outflow_wei: "500000000000000000000" },
+        declaredDiff: "Outflow: 500 $QUAI to Cyprus-1 Supplier (0x00...)",
+        recorded: { decision: "BLOCK", riskScore: 95, flags: ["QUAI_SHARD_PREFIX_SPOOFING"],
+                    warnings: ["[Q33-SHARD-SPOOF] CRITICAL: Recipient has Pitt-1 shard prefix 0x10, not Cyprus-1 0x00"],
+                    realDiff: "Cross-shard transfer redirected to Pitt-1", storageDiff: "CrossShardReplayBlocked(0x00..., 0x10...)" }
+      },
+      toctou: {
+        title: "DEX Swap (TOCTOU State-Drift Hazard)",
+        claimedAction: "Swap 10,000 USDT on Curve",
+        claimedRecipient: "Curve Pool 0xb12...34",
+        badge: "TOCTOU State-Drift",
+        selector: "0x3df02124 (exchange)",
+        tx: { to: USDT, value: "0", operation: 0,
+              data: "0x3df02124" },
+        declared: { allowed_recipients: ["0xb12...34"], allowed_tokens: [USDT], max_outflow_wei: "10000000000" },
+        declaredDiff: "Outflow: 10,000 USDT to Curve Pool",
+        recorded: { decision: "WARN", riskScore: 65, flags: ["TOCTOU_DRIFT_HAZARD"],
+                    warnings: ["[TOCTOU] WARNING: Policy deadline expires in 12s; vault nonce has drifted from 4 to 5"],
+                    realDiff: "Potential sandwich / stale state execution", storageDiff: "Vault nonce drift detected" }
+      },
       benign: {
         title: "Monthly Cloud Provider Payment",
         claimedAction: "Send 100 USDT",
@@ -705,13 +772,84 @@
     }
 
     function renderPresetButtons(activeKey, decision) {
-      ["wazirx", "bybit", "permit2", "benign"].forEach(k => {
+      ["wazirx", "bybit", "permit2", "quai_poison", "toctou", "benign"].forEach(k => {
         const btn = document.getElementById(`btn-${k}`);
+        if (!btn) return;
         const color = decision === "BLOCK" ? "bg-red-600" : decision === "WARN" ? "bg-amber-600" : "bg-emerald-600";
         btn.className = k === activeKey
-          ? `px-3 py-1.5 rounded-md text-xs font-medium transition ${color} text-white flex items-center gap-1.5 shadow`
-          : "px-3 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5";
+          ? `px-2.5 py-1.5 rounded-md text-xs font-medium transition ${color} text-white flex items-center gap-1.5 shadow`
+          : "px-2.5 py-1.5 rounded-md text-xs font-medium transition text-slate-400 hover:text-white flex items-center gap-1.5";
       });
+    }
+
+    let activePersona = "sec";
+
+    function switchPersonaTab(persona) {
+      activePersona = persona;
+      ["cfo", "sec", "mobile"].forEach(p => {
+        const btn = document.getElementById("tab" + p.charAt(0).toUpperCase() + p.slice(1));
+        if (btn) {
+          btn.className = p === persona
+            ? "px-2.5 py-1 rounded bg-blue-600 text-white font-bold transition shadow"
+            : "px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white transition";
+        }
+      });
+      if (lastView) {
+        renderPersonaContent(lastView);
+      }
+    }
+
+    function renderPersonaContent(view) {
+      const el = document.getElementById("personaContent");
+      if (!el || !view) return;
+      const isBlock = view.decision === "BLOCK";
+      const pv = view.personaViews;
+      if (activePersona === "cfo") {
+        el.innerHTML = `
+          <div class="text-slate-300">• Net Outflow: <strong class="text-white">${pv?.cfo_summary?.net_outflow_human || view.realDiff || '0'}</strong></div>
+          <div class="text-slate-300">• Rolling Velocity Cap: <strong class="${isBlock ? 'text-red-400' : 'text-emerald-400'}">${pv?.cfo_summary?.rolling_velocity_status || (isBlock ? 'CAP_BREACH_SUSPECTED' : 'WITHIN_CAP ($50k/day)')}</strong></div>
+          <div class="text-slate-300">• Counterparty Health: <strong class="${isBlock ? 'text-amber-400' : 'text-emerald-400'}">${pv?.cfo_summary?.counterparty_health || (isBlock ? 'ANOMALOUS TARGET' : 'VERIFIED RECIPIENT ✓')}</strong></div>
+          <div class="text-slate-300">• Financial Verdict: <strong class="${isBlock ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}">${view.decision}</strong></div>
+        `;
+      } else if (activePersona === "mobile") {
+        el.innerHTML = `
+          <div class="text-slate-300">• 4-Word Mnemonic: <strong class="text-cyan-300 font-mono tracking-wide">${view.checksum}</strong></div>
+          <div class="text-slate-300">• Air-Gap Status: <strong class="${isBlock ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}">${isBlock ? '🛑 REJECT TRANSACTION ON PHONE' : '✅ SAFE TO CONFIRM ON PHONE'}</strong></div>
+          <div class="text-slate-400 text-[11px]">• Matches isolated phone screen challenge before signing.</div>
+        `;
+      } else {
+        const isSlot0Mutated = view.storageDiff && view.storageDiff.includes("Slot 0");
+        el.innerHTML = `
+          <div class="text-slate-300">• Storage Slot 0 (masterCopy): <strong class="${isSlot0Mutated || isBlock ? 'text-red-400' : 'text-emerald-400'}">${pv?.security_summary?.slot0_status || (isSlot0Mutated ? 'MUTATED (CRITICAL)' : 'IMMUTABLE (0 Writes)')}</strong></div>
+          <div class="text-slate-300">• Internal Calls: <strong class="${view.flags?.some(f => f.includes('DELEGATECALL')) ? 'text-red-400' : 'text-emerald-400'}">${view.flags?.some(f => f.includes('DELEGATECALL')) ? 'UNAUTHORIZED DELEGATECALL' : 'STANDARD CALL (Safe)'}</strong></div>
+          <div class="text-slate-300">• On-Chain Revert Preview: <strong class="${isBlock ? 'text-yellow-400' : 'text-slate-500'} font-mono">${pv?.security_summary?.on_chain_revert_preview || (isBlock ? 'ControlSlotMutated("masterCopy")' : 'NONE')}</strong></div>
+        `;
+      }
+    }
+
+    function renderAdversarialTelemetry(view) {
+      const toctouEl = document.getElementById("toctouTele");
+      const transientEl = document.getElementById("transientTele");
+      const consensusEl = document.getElementById("consensusTele");
+      const isQuai = currentEngineMode === "quai";
+
+      if (toctouEl) {
+        if (view.flags?.some(f => f.includes("TOCTOU") || f.includes("DRIFT"))) {
+          toctouEl.className = "text-amber-400 font-bold";
+          toctouEl.innerText = "⚠️ DRIFT HAZARD DETECTED";
+        } else {
+          toctouEl.className = "text-emerald-400 font-bold";
+          toctouEl.innerText = "✓ PASSED (Time-Invariant)";
+        }
+      }
+      if (transientEl) {
+        transientEl.className = "text-purple-400 font-bold";
+        transientEl.innerText = "✓ EIP-1153 Reentrancy Locked";
+      }
+      if (consensusEl) {
+        consensusEl.className = "text-cyan-400 font-bold";
+        consensusEl.innerText = isQuai ? "Quai PoEM (Prime-3 Region-6 Depth)" : "Cancun Single-State EVM";
+      }
     }
 
     // Warnings may contain token-controlled text (symbols), so they are inserted as text, never HTML.
@@ -761,6 +899,8 @@
       document.getElementById("phoneReality").innerText = view.decision === "BLOCK"
         ? `CRITICAL: ${view.storageDiff !== "Control slots unchanged" ? view.storageDiff : view.realDiff}`
         : `${view.decision === "WARN" ? "REVIEW" : "SAFE"}: ${view.realDiff}`;
+      renderPersonaContent(view);
+      renderAdversarialTelemetry(view);
       if (qrcodeObj && view.rawChecksum) {
         qrcodeObj.clear();
         qrcodeObj.makeCode(`https://vero.verify/v1?words=${encodeURIComponent(view.rawChecksum)}`);

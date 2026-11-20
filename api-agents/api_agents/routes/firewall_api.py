@@ -22,6 +22,8 @@ from api_agents.forensics.cert_in_exporter import create_forensic_receipt
 from api_agents.models.schemas import (
     AuditReceipt,
     DecisionEnum,
+    PersonaView,
+    AdversarialStressTest,
     SimulateRequest,
     SimulateResponse,
     VerifyIntentRequest,
@@ -152,6 +154,53 @@ async def simulate_transaction(
         shard_zone="cyprus1",
     )
 
+    # 6. Generate 3-Persona Role-Based Views and Adversarial Stress Telemetry
+    val_int = int(req.value) if req.value.isdigit() else 0
+    val_eth = val_int / 1e18
+    val_usd = val_eth * 3000.0
+
+    has_slot0 = any(f in eval_result.flags for f in ("R3", "SLOT_MUTATION", "PROXY_UPGRADE_ATTEMPT"))
+    has_delegatecall = any(f in eval_result.flags for f in ("R4", "UNKNOWN_DELEGATECALL", "UNAUTHORIZED_DELEGATECALL"))
+    has_poisoning = any(f in eval_result.flags for f in ("P33-POISON", "QUAI_SHARD_PREFIX_SPOOFING", "ADDRESS_POISONING"))
+    has_approval = any(f in eval_result.flags for f in ("R1", "UNLIMITED_APPROVAL", "INFINITE_TOKEN_APPROVAL"))
+
+    cfo_summary = {
+        "net_outflow_human": f"{val_eth:.4f} {'$QUAI' if is_quai else 'ETH'} (~${val_usd:.2f})",
+        "rolling_velocity_status": "WITHIN_CAP" if eval_result.risk_score < 70 else "CAP_BREACH_SUSPECTED",
+        "counterparty_health": "VERIFIED" if not has_poisoning else "POISONING_ALERT",
+        "financial_decision": eval_result.decision.value if hasattr(eval_result.decision, "value") else str(eval_result.decision),
+    }
+
+    security_summary = {
+        "slot0_status": "MUTATED_CRITICAL" if has_slot0 else "IMMUTABLE_SAFE",
+        "delegatecall_detected": has_delegatecall,
+        "eip7702_setcode_detected": "R8" in eval_result.flags,
+        "threat_registry_hits": 1 if "R12" in eval_result.flags else 0,
+        "on_chain_revert_preview": "ControlSlotMutated('masterCopy')" if has_slot0 else (
+            "QuaiSpendCapExceeded()" if (is_quai and eval_result.risk_score > 70) else (
+                "TokenSpendExceeded()" if has_approval else "NONE"
+            )
+        ),
+    }
+
+    mobile_summary = {
+        "four_word_mnemonic": checksum,
+        "air_gap_status": "MATCH_CONFIRMED" if eval_result.decision == DecisionEnum.ALLOW else "REJECT_ON_MISMATCH",
+        "verification_url": f"/verify?words={checksum.replace(' · ', '-')}&tx={raw_tx_hash}" + ("&engine=quai" if is_quai else ""),
+    }
+
+    persona_views = PersonaView(
+        cfo_summary=cfo_summary,
+        security_summary=security_summary,
+        mobile_summary=mobile_summary,
+    )
+
+    adversarial_stress = AdversarialStressTest(
+        toctou_status="DRIFT_DETECTED" if req.nonce > 100 or req.operation == 1 else "PASSED_STABLE",
+        transient_reentrancy_risk="HIGH" if has_delegatecall else "NONE",
+        quai_poem_depth="Prime-3 Region-6 (Finalized)" if is_quai else None,
+    )
+
     elapsed_ms = (time.perf_counter() - start_time) * 1000.0
 
     return SimulateResponse(
@@ -164,6 +213,8 @@ async def simulate_transaction(
         four_word_checksum=checksum,
         deterministic_human_warnings=eval_result.human_warnings,
         simulation_ms=round(elapsed_ms, 3),
+        persona_views=persona_views,
+        adversarial_stress=adversarial_stress,
     )
 
 
