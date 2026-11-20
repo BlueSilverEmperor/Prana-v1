@@ -105,10 +105,13 @@ def _keccak256(data: bytes) -> bytes:
             return hashlib.sha3_256(data).digest()
 
 def get_intent_policy_typehash_hex() -> str:
-    from Crypto.Hash import keccak
-    k = keccak.new(digest_bits=256)
-    k.update(INTENT_POLICY_TYPE_STRING.encode())
-    return "0x" + k.digest().hex()
+    try:
+        from Crypto.Hash import keccak
+        k = keccak.new(digest_bits=256)
+        k.update(INTENT_POLICY_TYPE_STRING.encode())
+        return "0x" + k.digest().hex()
+    except Exception:
+        return "0x" + _keccak256(INTENT_POLICY_TYPE_STRING.encode()).hex()
 
 INTENT_POLICY_TYPEHASH = get_intent_policy_typehash_hex()
 

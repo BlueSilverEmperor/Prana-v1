@@ -1,0 +1,28 @@
+{
+  "dataset": "Kaggle Ethereum Phishing & Smart Contract Attack Dataset",
+  "total_samples": 1500,
+  "test_samples": 300,
+  "metrics": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0
+  },
+  "confusion_matrix": {
+    "true_negatives": 150,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "true_positives": 150
+  },
+  "top_features": {
+    "intent_declaration_mismatch": 0.355,
+    "selector_frequency_score": 0.1829,
+    "gas_limit_ratio": 0.138,
+    "sender_nonce_deviation": 0.1317,
+    "is_infinite_allowance": 0.0733,
+    "value_outflow_eth": 0.0465,
+    "storage_slot_mutation_expected": 0.0265,
+    "calldata_entropy": 0.0188
+  }
+}

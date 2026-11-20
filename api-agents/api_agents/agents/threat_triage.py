@@ -27,6 +27,8 @@ class ThreatRegistryEntryDraft:
     evidence_hashes: List[str] = field(default_factory=list)
     created_at: str = ""
     analyst_review_checklist: List[str] = field(default_factory=list)
+    ml_confidence_score: float = 0.0
+    ml_telemetry: Dict[str, Any] = field(default_factory=dict)
 
 
 def triage_threat_incident(
