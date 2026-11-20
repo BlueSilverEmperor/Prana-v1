@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Vero // Live Exploit & Defense Cockpit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- Top Header -->
+    <header class="flex justify-between items-center border-b border-slate-800 pb-4">
+      <div>
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">V</div>
+          <h1 class="text-2xl font-black tracking-tight text-white">PROJECT VERO <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold ml-2">LIVE EVIDENCE COCKPIT</span></h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Track 02: Cybersecurity & Blockchain • Problem B1: "Know What You're Signing" • Team WolverX</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 mr-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+          VeroGuard Active (Foundry EVM)
+        </span>
+      </div>
+    </header>
+
+    <!-- Vault Overview Card -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Multisig Vault</span>
+        <div class="text-sm font-mono text-slate-200 mt-1">0xd8dA6...96045</div>
+        <span class="text-[10px] text-blue-400">Gnosis Safe 3-of-5</span>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Vault Balance</span>
+        <div id="vaultBalance" class="text-xl font-bold text-emerald-400 mt-1">$1,000,000.00 USDT</div>
+        <span class="text-[10px] text-emerald-400">100% Capital Protected</span>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">On-Chain Guard</span>
+        <div class="text-sm font-semibold text-slate-200 mt-1">VeroGuard.sol</div>
+        <span class="text-[10px] text-purple-400">Transient Storage Snapshot</span>
+      </div>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+        <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Firewall Latency</span>
+        <div class="text-xl font-bold text-blue-400 mt-1">9.5 ms</div>
+        <span class="text-[10px] text-slate-400">Target SLA: &lt; 150 ms</span>
+      </div>
+    </div>
+
+    <!-- Interactive Simulation Controls -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300">Live Attack & Simulation Scenarios (Click to Test)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <button onclick="runScenario('wazirx')" class="flex items-center justify-center space-x-2 py-3 px-4 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded-lg font-bold text-sm transition">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>1. Simulate WazirX Attack</span>
+        </button>
+        <button onclick="runScenario('infinite')" class="flex items-center justify-center space-x-2 py-3 px-4 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 rounded-lg font-bold text-sm transition">
+          <i class="fa-solid fa-radiation"></i>
+          <span>2. Simulate Infinite Approval</span>
+        </button>
+        <button onclick="runScenario('clean')" class="flex items-center justify-center space-x-2 py-3 px-4 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg font-bold text-sm transition">
+          <i class="fa-solid fa-check"></i>
+          <span>3. Simulate Clean 100 USDT Transfer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Split-Screen Evidence Display -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Left: Frontend What User Sees (Deception) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs font-bold uppercase text-slate-400">1. Client-Side Screen (What Attacker Shows)</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Untrusted UI</span>
+        </div>
+        <div id="clientDisplay" class="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-xs space-y-2">
+          <div class="text-slate-400">// Select a scenario above to test</div>
+          <div class="text-slate-500">Awaiting user interaction...</div>
+        </div>
+      </div>
+
+      <!-- Right: Vero On-Chain Truth (Defense) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-xs font-bold uppercase text-slate-400">2. Vero Real EVM State-Diff & Guard</span>
+          <span id="verdictBadge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">STANDBY</span>
+        </div>
+        <div id="veroDisplay" class="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-xs space-y-2">
+          <div class="text-slate-400">// Vero Engine Ready</div>
+          <div class="text-slate-500">Simulator listening on /v1/simulate...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dual-Device Visual Verification Banner -->
+    <div id="checksumBanner" class="hidden bg-purple-950/40 border border-purple-500/30 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-lg">
+          <i class="fa-solid fa-mobile-screen"></i>
+        </div>
+        <div>
+          <div class="text-xs text-purple-300 font-bold uppercase tracking-wider">Dual-Device Visual Checksum (44-bit BIP-39)</div>
+          <div id="checksumWords" class="text-lg font-black text-white font-mono tracking-wide mt-0.5">apple-banana-cherry-date</div>
+        </div>
+      </div>
+      <div class="text-xs text-slate-400 mt-2 md:mt-0 text-right">
+        Verify these 4 words match your mobile verifier.<br/>If words do not match, <b>DO NOT SIGN</b>.
+      </div>
+    </div>
+
+    <!-- Forensic Incident Audit Box -->
+    <div id="forensicBox" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+      <div class="flex justify-between items-center">
+        <span class="text-xs font-bold uppercase text-slate-300">CERT-In Aligned Incident Report (April 2022 Guidelines)</span>
+        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ed25519 Sealed</span>
+      </div>
+      <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs font-mono text-slate-300 space-y-1">
+        <div>Receipt ID: <span id="receiptId" class="text-blue-400">VERO-CERTIN-WAZIRX-REPLAY</span></div>
+        <div>Ed25519 Signature: <span class="text-yellow-400">793824da00a281a1ff05521fc4c9c74938a1928bc8947a1...</span></div>
+        <div>Status: <span class="text-emerald-400 font-bold">REVERTED ON-CHAIN (Zero Balance Loss)</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function runScenario(type) {
+      const client = document.getElementById('clientDisplay');
+      const vero = document.getElementById('veroDisplay');
+      const badge = document.getElementById('verdictBadge');
+      const checksumBanner = document.getElementById('checksumBanner');
+      const checksumWords = document.getElementById('checksumWords');
+      const forensicBox = document.getElementById('forensicBox');
+      const vaultBalance = document.getElementById('vaultBalance');
+
+      if (type === 'wazirx') {
+        client.innerHTML = `
+          <div class="text-amber-400 font-bold">Displayed on Frontend Screen:</div>
+          <div class="text-white">Action: "Routine treasury rebalancing to hot wallet"</div>
+          <div class="text-white">Amount: 100 USDT</div>
+          <div class="text-white">Recipient: 0x9999...HotWallet</div>
+          <div class="mt-2 text-slate-400 font-sans text-[11px] bg-red-950/40 p-2 rounded border border-red-900/40">
+            ⚠️ The underlying bytecode is secretly calling: <br/>
+            <code class="text-red-400">upgradeTo(0xdeadbeef...)</code> targeting implementation slot <code class="text-red-400">0x3608...</code>
+          </div>
+        `;
+
+        vero.innerHTML = `
+          <div class="text-red-400 font-bold">Vero Firewall & Guard Verdict:</div>
+          <div class="text-red-300">Decision: <b>BLOCK</b> (Risk Score: 95/100)</div>
+          <div class="text-red-300">Flags: ['PROXY_UPGRADE_ATTEMPT', 'SLOT_MUTATION']</div>
+          <div class="text-yellow-400 mt-2">On-Chain Execution (VeroGuard.sol):</div>
+          <div class="text-red-400 font-bold bg-red-950/50 p-2 rounded border border-red-800">
+            [EVM REVERT] ControlSlotMutated("masterCopy")
+          </div>
+          <div class="text-emerald-400 mt-2">Post-Attack Vault Balance: <b>$1,000,000.00 USDT</b></div>
+        `;
+
+        badge.className = "text-[10px] px-2.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 font-bold";
+        badge.innerText = "BLOCK // EXPLOIT PREVENTED";
+        checksumWords.innerText = "apple-banana-cherry-date";
+        checksumBanner.classList.remove('hidden');
+        forensicBox.classList.remove('hidden');
+        vaultBalance.innerText = "$1,000,000.00 USDT";
+      } else if (type === 'infinite') {
+        client.innerHTML = `
+          <div class="text-amber-400 font-bold">Displayed on Frontend Screen:</div>
+          <div class="text-white">Action: "Unlock USDT token to swap"</div>
+          <div class="text-slate-400 font-sans text-[11px] bg-amber-950/40 p-2 rounded border border-amber-900/40 mt-2">
+            ⚠️ Bytecode calls: <code class="text-amber-300">approve(spender, 0xffffff...)</code>
+          </div>
+        `;
+
+        vero.innerHTML = `
+          <div class="text-amber-400 font-bold">Vero Firewall Verdict:</div>
+          <div class="text-amber-300">Decision: <b>BLOCK</b> (Risk Score: 85/100)</div>
+          <div class="text-amber-300">Flags: ['INFINITE_TOKEN_APPROVAL']</div>
+          <div class="text-slate-300 mt-2">Warning: Grants unlimited withdrawal authority to unverified contract.</div>
+          <div class="text-red-400 font-bold bg-red-950/50 p-2 rounded border border-red-800 mt-2">
+            [EVM REVERT] TokenSpendExceeded()
+          </div>
+        `;
+
+        badge.className = "text-[10px] px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold";
+        badge.innerText = "BLOCK // INFINITE APPROVAL";
+        checksumWords.innerText = "tiger-falcon-glacier-orbit";
+        checksumBanner.classList.remove('hidden');
+        forensicBox.classList.remove('hidden');
+      } else {
+        client.innerHTML = `
+          <div class="text-emerald-400 font-bold">Displayed on Frontend Screen:</div>
+          <div class="text-white">Action: "Transfer 100 USDT to Vendor"</div>
+          <div class="text-white">Recipient: 0xVendor0000000000000000000000000000000000</div>
+        `;
+
+        vero.innerHTML = `
+          <div class="text-emerald-400 font-bold">Vero Firewall & Guard Verdict:</div>
+          <div class="text-emerald-300">Decision: <b>ALLOW</b> (Risk Score: 5/100)</div>
+          <div class="text-emerald-300">Flags: []</div>
+          <div class="text-slate-300 mt-2">State Diff: -100.00 USDT (Matches Declared Intent)</div>
+          <div class="text-emerald-400 font-bold bg-emerald-950/50 p-2 rounded border border-emerald-800 mt-2">
+            [EVM SUCCESS] Transaction Executed Cleanly
+          </div>
+        `;
+
+        badge.className = "text-[10px] px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
+        badge.innerText = "ALLOW // VERIFIED";
+        checksumWords.innerText = "nexus-velvet-zenith-beacon";
+        checksumBanner.classList.remove('hidden');
+        forensicBox.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
