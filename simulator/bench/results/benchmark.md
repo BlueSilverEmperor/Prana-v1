@@ -1,6 +1,6 @@
 # Vero benchmark (static mode)
 
-Scenarios: 55. Latency p50 0.148 ms, p95 0.351 ms.
+Scenarios: 55. Latency p50 0.143 ms, p95 0.336 ms.
 Expected-rule attribution on malicious scenarios: 30/30 (100.0%, CI 88.6%–100.0%).
 
 | Baseline | Detection | Block | False positives |
