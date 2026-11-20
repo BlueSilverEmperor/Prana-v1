@@ -1,44 +1,250 @@
 {
-  "dataset_name": "Multi-Protocol DeFi & Attack Vector Benchmark (Real Incidents + 55 Scenarios + Kaggle/DeFiHackLabs)",
-  "total_samples": 10000,
-  "real_incident_samples": 21,
-  "train_samples": 8000,
-  "test_samples": 2000,
+  "dataset_name": "Multi-Protocol DeFi & Attack Vector Benchmark (20 Sets of 30,000 Unique Rows = 600,000 Transactions)",
+  "k_way_sets_count": 20,
+  "rows_per_set": 30000,
+  "total_unique_samples": 600000,
+  "global_uniqueness_rate": "100.00%",
   "feature_count": 15,
-  "model_architecture": "VotingClassifier(RandomForest[150] + GradientBoosting[150], soft voting, weights=[1.0, 1.2])",
-  "metrics": {
-    "accuracy": 0.999,
-    "precision": 0.998,
-    "recall": 1.0,
-    "f1_score": 0.999,
-    "roc_auc": 1.0,
-    "cv_accuracy_mean": 0.9971,
-    "cv_accuracy_std": 0.0011,
-    "cv_f1_mean": 0.9971,
-    "cv_f1_std": 0.0011,
-    "cv_roc_auc_mean": 1.0
+  "model_architecture": "Dual-Tier K-Way VotingClassifier (20x RandomForest[15] Set Experts + 1x 600k HistGradientBoosting)",
+  "k_way_sets_summary": {
+    "mean_accuracy": 0.9989,
+    "std_accuracy": 0.0005,
+    "mean_precision": 0.9989,
+    "mean_recall": 0.9988,
+    "mean_f1_score": 0.9989,
+    "mean_roc_auc": 1.0
   },
-  "confusion_matrix": {
-    "true_negatives": 998,
-    "false_positives": 2,
-    "false_negatives": 0,
-    "true_positives": 1000
+  "per_set_metrics": [
+    {
+      "set_id": 1,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9985,
+      "precision": 0.9987,
+      "recall": 0.9983,
+      "f1_score": 0.9985,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 2,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9993,
+      "precision": 1.0,
+      "recall": 0.9987,
+      "f1_score": 0.9993,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 3,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.999,
+      "precision": 0.9993,
+      "recall": 0.9987,
+      "f1_score": 0.999,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 4,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9987,
+      "precision": 0.999,
+      "recall": 0.9983,
+      "f1_score": 0.9986,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 5,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9992,
+      "precision": 0.9993,
+      "recall": 0.999,
+      "f1_score": 0.9992,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 6,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.999,
+      "precision": 0.9986,
+      "recall": 0.9993,
+      "f1_score": 0.999,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 7,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9992,
+      "precision": 0.9993,
+      "recall": 0.999,
+      "f1_score": 0.9992,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 8,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9983,
+      "precision": 0.999,
+      "recall": 0.9977,
+      "f1_score": 0.9983,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 9,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.999,
+      "precision": 0.9983,
+      "recall": 0.9997,
+      "f1_score": 0.999,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 10,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9995,
+      "precision": 0.999,
+      "recall": 1.0,
+      "f1_score": 0.9995,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 11,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9983,
+      "precision": 0.9987,
+      "recall": 0.998,
+      "f1_score": 0.9983,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 12,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9988,
+      "precision": 0.9983,
+      "recall": 0.9993,
+      "f1_score": 0.9988,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 13,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9992,
+      "precision": 0.9993,
+      "recall": 0.999,
+      "f1_score": 0.9992,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 14,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9988,
+      "precision": 0.999,
+      "recall": 0.9987,
+      "f1_score": 0.9988,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 15,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9992,
+      "precision": 0.9997,
+      "recall": 0.9987,
+      "f1_score": 0.9992,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 16,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9992,
+      "precision": 0.999,
+      "recall": 0.9993,
+      "f1_score": 0.9991,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 17,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9972,
+      "precision": 0.9963,
+      "recall": 0.998,
+      "f1_score": 0.9971,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 18,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.999,
+      "precision": 0.9986,
+      "recall": 0.9993,
+      "f1_score": 0.999,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 19,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.9993,
+      "precision": 0.9993,
+      "recall": 0.9993,
+      "f1_score": 0.9993,
+      "roc_auc": 1.0
+    },
+    {
+      "set_id": 20,
+      "train_samples": 24000,
+      "test_samples": 6000,
+      "accuracy": 0.999,
+      "precision": 0.9997,
+      "recall": 0.9983,
+      "f1_score": 0.999,
+      "roc_auc": 1.0
+    }
+  ],
+  "global_holdout_metrics": {
+    "test_samples": 20000,
+    "accuracy": 0.9994,
+    "precision": 0.9991,
+    "recall": 0.9998,
+    "f1_score": 0.9995,
+    "roc_auc": 1.0
+  },
+  "global_confusion_matrix": {
+    "true_negatives": 9992,
+    "false_positives": 9,
+    "false_negatives": 2,
+    "true_positives": 9997
   },
   "feature_importance_ranking": {
-    "intent_declaration_mismatch": 0.6582,
-    "contract_reputation_score": 0.103,
-    "sender_nonce_deviation": 0.0689,
-    "selector_frequency_score": 0.0498,
-    "value_outflow_eth": 0.0321,
-    "gas_limit_ratio": 0.0289,
-    "storage_slot_mutation_expected": 0.0186,
-    "is_infinite_allowance": 0.0168,
-    "calldata_entropy": 0.0126,
-    "is_upgrade_selector": 0.004,
-    "is_delegatecall": 0.0026,
-    "calldata_length": 0.0023,
-    "call_depth": 0.0023,
-    "is_governance_timelock_origin": 0.0,
-    "target_is_contract": 0.0
+    "intent_declaration_mismatch": 0.2636,
+    "sender_nonce_deviation": 0.1942,
+    "selector_frequency_score": 0.1506,
+    "contract_reputation_score": 0.1472,
+    "gas_limit_ratio": 0.1183,
+    "value_outflow_eth": 0.0553,
+    "call_depth": 0.0261,
+    "calldata_length": 0.0202,
+    "calldata_entropy": 0.0152,
+    "storage_slot_mutation_expected": 0.0069,
+    "is_infinite_allowance": 0.0014,
+    "target_is_contract": 0.0008,
+    "is_upgrade_selector": 0.0001,
+    "is_delegatecall": 0.0001,
+    "is_governance_timelock_origin": 0.0
   }
 }

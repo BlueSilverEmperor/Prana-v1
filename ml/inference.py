@@ -9,6 +9,8 @@ import pickle
 import numpy as np
 from typing import Dict, Any, List
 
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", "4")
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 ML_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(ML_DIR, "threat_model.pkl")
