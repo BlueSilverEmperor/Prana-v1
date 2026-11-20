@@ -1,0 +1,13 @@
+{
+  "name": "@vero/guard-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript EIP-1193 wrapper for Project Vero Transaction Firewall",
+  "main": "dist/veroGuardSdk.js",
+  "types": "dist/veroGuardSdk.d.ts",
+  "scripts": {
+    "test": "node testSdk.mjs"
+  },
+  "keywords": ["ethereum", "eip-1193", "security", "firewall", "multisig", "safe"],
+  "author": "Project Vero Team",
+  "license": "MIT"
+}
