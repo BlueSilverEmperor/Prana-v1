@@ -162,3 +162,51 @@ def compute_four_word_checksum(
         qi_value_cap=qi_value_cap,
     )
 
+
+def compute_six_word_checksum(
+    chain_id: int,
+    safe_address: str,
+    nonce: int,
+    raw_tx_hash: str,
+    intent_hash: str,
+    mode: str = "STANDARD_EVM",
+    shard_zone: str = "cyprus1",
+    quai_value_cap: int = 0,
+    qi_value_cap: int = 0,
+) -> str:
+    """Computes 6-word BIP-39 checksum (66 bits entropy) for anti-collision security."""
+    import sys
+    from pathlib import Path
+    api_agents_dir = str(Path(__file__).resolve().parent.parent / "api-agents")
+    if api_agents_dir not in sys.path:
+        sys.path.insert(0, api_agents_dir)
+    from api_agents.utils.four_word_checksum import compute_six_word_checksum as _cswc
+    return _cswc(
+        chain_id=chain_id,
+        safe_address=safe_address,
+        nonce=nonce,
+        raw_tx_hash=raw_tx_hash,
+        intent_hash=intent_hash,
+        mode=mode,
+        shard_zone=shard_zone,
+        quai_value_cap=quai_value_cap,
+        qi_value_cap=qi_value_cap,
+    )
+
+
+def verify_intent_hash(
+    vault: str,
+    nonce: int,
+    safe_tx_hash: str,
+    expected_intent_hash: str
+) -> bool:
+    """On-chain/Off-chain intentHash parity check."""
+    import sys
+    from pathlib import Path
+    api_agents_dir = str(Path(__file__).resolve().parent.parent / "api-agents")
+    if api_agents_dir not in sys.path:
+        sys.path.insert(0, api_agents_dir)
+    from api_agents.utils.four_word_checksum import verify_intent_hash as _vih
+    return _vih(vault, nonce, safe_tx_hash, expected_intent_hash)
+
+

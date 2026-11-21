@@ -142,3 +142,57 @@ def compute_four_word_checksum(
     )
     digest = keccak256(preimage)
     return digest_to_bip39_words(digest, word_count=word_count, separator=separator)
+
+
+def compute_six_word_checksum(
+    chain_id: Union[int, str, bytes],
+    safe_address: Union[str, bytes],
+    nonce: Union[int, str, bytes],
+    raw_tx_hash: Union[str, bytes],
+    intent_hash: Union[str, bytes],
+    separator: str = DEFAULT_WORD_SEPARATOR,
+    mode: str = "STANDARD_EVM",
+    shard_zone: str = "cyprus1",
+    quai_value_cap: int = 0,
+    qi_value_cap: int = 0,
+) -> str:
+    """
+    Computes 6-word BIP-39 checksum providing 66 bits of collision-resistant entropy.
+    """
+    return compute_four_word_checksum(
+        chain_id=chain_id,
+        safe_address=safe_address,
+        nonce=nonce,
+        raw_tx_hash=raw_tx_hash,
+        intent_hash=intent_hash,
+        word_count=6,
+        separator=separator,
+        mode=mode,
+        shard_zone=shard_zone,
+        quai_value_cap=quai_value_cap,
+        qi_value_cap=qi_value_cap,
+    )
+
+
+def verify_intent_hash(
+    vault: str,
+    nonce: int,
+    safe_tx_hash: str,
+    expected_intent_hash: str
+) -> bool:
+    """
+    Verifies that the computed intentHash matches expected intentHash.
+    Matches VeroGuard.sol verifyIntentHash(address,uint256,bytes32,bytes32).
+    """
+    import eth_abi
+    from eth_utils import to_checksum_address
+    try:
+        clean_vault = to_checksum_address(vault)
+        tx_hex = safe_tx_hash[2:] if safe_tx_hash.startswith("0x") else safe_tx_hash
+        tx_bytes = bytes.fromhex(tx_hex.rjust(64, "0"))
+        encoded = eth_abi.encode(["address", "uint256", "bytes32"], [clean_vault, nonce, tx_bytes])
+        computed = "0x" + keccak256(encoded).hex()
+        return computed.lower() == expected_intent_hash.lower()
+    except Exception:
+        return False
+

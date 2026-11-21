@@ -117,3 +117,24 @@ _predictor = ThreatPredictor()
 
 def predict_transaction_anomaly(to: str, value: int, data: str, declared_intent: str = "") -> Dict[str, Any]:
     return _predictor.predict(to, value, data, declared_intent)
+
+
+def enforce_strict_rule_precedence(deterministic_flags: List[str], ml_prediction: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    STRICT FAIL-CLOSED INVARIANT:
+    Deterministic AST/EVM rules (R1-R12) strictly override Machine Learning classifications.
+    If any deterministic rule triggered, decision is unconditionally BLOCK and classification is MALICIOUS.
+    ML can escalate an unflagged transaction to BLOCK (zero-day anomaly detection),
+    but can NEVER downgrade a deterministic rule violation to ALLOW.
+    """
+    result = dict(ml_prediction)
+    if deterministic_flags and len(deterministic_flags) > 0:
+        result["ml_recommendation"] = "BLOCK"
+        result["ml_classification"] = "MALICIOUS"
+        result["override_applied"] = True
+        result["override_reason"] = f"Deterministic AST/EVM rule triggered: {', '.join(deterministic_flags)}"
+    else:
+        result["override_applied"] = False
+        result["override_reason"] = "No deterministic rule violations; purely ML anomaly-driven."
+    return result
+

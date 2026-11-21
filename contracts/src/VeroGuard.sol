@@ -97,6 +97,17 @@ contract VeroGuard is EIP712 {
     error ThresholdNotMet(uint256 required, uint256 provided);
     error ExecutionFailed();
     error RecoveryVaultNotSet(address vault);
+    error IntentHashMismatch(bytes32 expected, bytes32 actual);
+
+    bytes32 public constant EIP1967_IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    struct BalanceStorageDiff {
+        uint256 ethOutflow;
+        uint256[] tokenOutflows;
+        bool controlSlotsIntact;
+    }
+
+    event SnapshotDiffVerified(address indexed vault, uint256 ethOutflow, uint256 tokensChecked);
 
     event EmergencyPaused(address indexed caller);
     event EmergencyUnpaused(address indexed caller);
@@ -201,6 +212,61 @@ contract VeroGuard is EIP712 {
         indices[1] = uint16((uint256(digest) >> 11) & 0x7FF);
         indices[2] = uint16((uint256(digest) >> 22) & 0x7FF);
         indices[3] = uint16((uint256(digest) >> 33) & 0x7FF);
+    }
+
+    /**
+     * @notice Computes 6 BIP-39 word indices (0..2047) providing 66 bits of collision-resistant entropy.
+     * Prevents birthday collision attacks on the out-of-band verification checksum.
+     */
+    function computeSixWordChecksumIndices(
+        address vault,
+        uint256 nonce,
+        bytes32 safeTxHash,
+        bytes32 policyHash
+    ) external pure returns (uint16[6] memory indices) {
+        bytes32 digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash));
+        indices[0] = uint16(uint256(digest) & 0x7FF);
+        indices[1] = uint16((uint256(digest) >> 11) & 0x7FF);
+        indices[2] = uint16((uint256(digest) >> 22) & 0x7FF);
+        indices[3] = uint16((uint256(digest) >> 33) & 0x7FF);
+        indices[4] = uint16((uint256(digest) >> 44) & 0x7FF);
+        indices[5] = uint16((uint256(digest) >> 55) & 0x7FF);
+    }
+
+    /**
+     * @notice On-chain intentHash verification enforcing cryptographically bound execution intent.
+     */
+    function verifyIntentHash(
+        address vault,
+        uint256 nonce,
+        bytes32 safeTxHash,
+        bytes32 expectedIntentHash
+    ) public pure returns (bool) {
+        bytes32 computed = keccak256(abi.encode(vault, nonce, safeTxHash));
+        return computed == expectedIntentHash;
+    }
+
+    function enforceIntentHash(
+        address vault,
+        uint256 nonce,
+        bytes32 safeTxHash,
+        bytes32 expectedIntentHash
+    ) external pure {
+        bytes32 computed = keccak256(abi.encode(vault, nonce, safeTxHash));
+        if (computed != expectedIntentHash) {
+            revert IntentHashMismatch(expectedIntentHash, computed);
+        }
+    }
+
+    /**
+     * @notice Verifies that slot 0 / EIP-1967 masterCopy implementation pointer has not been mutated.
+     */
+    function verifySlot0Immutability(address vault, address expectedMasterCopy) public view returns (bool) {
+        IGuardedMultisig ms = IGuardedMultisig(vault);
+        if (ms.masterCopy() != expectedMasterCopy) {
+            revert ControlSlotMutated("masterCopy");
+        }
+        return true;
     }
 
     /**
@@ -419,9 +485,18 @@ contract VeroGuard is EIP712 {
     }
 
     /**
-     * @dev Recursively decodes MultiSend packed transactions and enforces policy.
+     * @dev Recursively decodes MultiSend packed transactions up to depth 5 and enforces policy.
      */
     function _validateMultiSend(bytes memory transactions, IntentPolicy memory policy) internal view {
+        _validateMultiSendRecursive(transactions, policy, 0);
+    }
+
+    function _validateMultiSendRecursive(
+        bytes memory transactions,
+        IntentPolicy memory policy,
+        uint256 depth
+    ) internal view {
+        require(depth <= 5, "MultiSend recursion depth exceeded");
         uint256 length = transactions.length;
         uint256 i = 0;
 
@@ -448,6 +523,17 @@ contract VeroGuard is EIP712 {
                 subData[j] = transactions[i + j];
             }
             i += dataLength;
+
+            // Recursive parsing if subcall targets MultiSend or executes multiSend(bytes)
+            if (dataLength >= 4) {
+                bytes4 sel = bytes4(subData);
+                if (sel == 0x8d80ff0a || target == multiSend) {
+                    if (dataLength >= 36) {
+                        bytes memory innerTransactions = abi.decode(_slice(subData, 4, dataLength - 4), (bytes));
+                        _validateMultiSendRecursive(innerTransactions, policy, depth + 1);
+                    }
+                }
+            }
 
             // Enforce constraints on each nested item
             if (threatRegistry.isBlacklisted(target)) revert TargetBlacklisted(target);
@@ -486,6 +572,14 @@ contract VeroGuard is EIP712 {
         }
     }
 
+    function _slice(bytes memory data, uint256 start, uint256 len) internal pure returns (bytes memory) {
+        bytes memory part = new bytes(len);
+        for (uint256 k = 0; k < len; k++) {
+            part[k] = data[start + k];
+        }
+        return part;
+    }
+
     /**
      * @notice Takes pre-execution snapshot of vault control slots, ETH balance, and registered tokens.
      */
@@ -508,35 +602,33 @@ contract VeroGuard is EIP712 {
     }
 
     /**
-     * @notice Feature #12: Multi-Asset Vault Snapshot Post-Check.
+     * @notice Explicit pre/post balance & storage snapshot diff calculator and verifier.
      */
-    function checkAfterExecution(
+    function computeAndVerifySnapshotDiff(
         address vault,
-        bool success,
-        IntentPolicy memory policy,
-        VaultSnapshot memory preSnap
-    ) public virtual {
-        if (!success) revert ExecutionFailed();
-
+        VaultSnapshot memory preSnap,
+        IntentPolicy memory policy
+    ) public view returns (BalanceStorageDiff memory diff) {
         // 1. Check ETH outflow
         uint256 postEth = vault.balance;
         if (preSnap.ethBalance > postEth) {
-            uint256 ethOutflow = preSnap.ethBalance - postEth;
-            if (ethOutflow > policy.ethValueCap) {
-                revert EthValueCapExceeded(policy.ethValueCap, ethOutflow);
+            diff.ethOutflow = preSnap.ethBalance - postEth;
+            if (diff.ethOutflow > policy.ethValueCap) {
+                revert EthValueCapExceeded(policy.ethValueCap, diff.ethOutflow);
             }
         }
 
         // 2. Check Token outflows
+        diff.tokenOutflows = new uint256[](policy.tokenAddresses.length);
         for (uint256 i = 0; i < policy.tokenAddresses.length; i++) {
             address token = policy.tokenAddresses[i];
             uint256 postBal = _getTokenBalance(token, vault);
             uint256 preBal = preSnap.tokenBalances[i];
             if (preBal > postBal) {
-                uint256 outflow = preBal - postBal;
+                diff.tokenOutflows[i] = preBal - postBal;
                 uint256 cap = policy.maxTokenSpends[i];
-                if (outflow > cap) {
-                    revert TokenSpendExceeded(token, cap, outflow);
+                if (diff.tokenOutflows[i] > cap) {
+                    revert TokenSpendExceeded(token, cap, diff.tokenOutflows[i]);
                 }
             }
         }
@@ -558,6 +650,24 @@ contract VeroGuard is EIP712 {
         if (vault.codehash != preSnap.walletCodeHash) {
             revert ControlSlotMutated("codehash");
         }
+
+        diff.controlSlotsIntact = true;
+    }
+
+    /**
+     * @notice Feature #12: Multi-Asset Vault Snapshot Post-Check.
+     */
+    function checkAfterExecution(
+        address vault,
+        bool success,
+        IntentPolicy memory policy,
+        VaultSnapshot memory preSnap
+    ) public virtual {
+        if (!success) revert ExecutionFailed();
+
+        // Enforce comprehensive pre/post balance & storage snapshot diffs
+        computeAndVerifySnapshotDiff(vault, preSnap, policy);
+        emit SnapshotDiffVerified(vault, preSnap.ethBalance > vault.balance ? preSnap.ethBalance - vault.balance : 0, policy.tokenAddresses.length);
     }
 
     function _getTokenBalance(address token, address account) internal view returns (uint256) {
