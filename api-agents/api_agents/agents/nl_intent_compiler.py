@@ -13,7 +13,6 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 from api_agents.utils.keccak import keccak256
-from api_agents.agents.hashference_client import query_hashference_llm
 
 
 @dataclass
@@ -79,20 +78,15 @@ def compile_nl_to_intent_policy(
 ) -> CompiledIntentPolicyDraft:
     """
     Parses natural language policy and generates an EIP-712 IntentPolicy draft.
-    Uses regex and rule heuristics with optional LLM / Hashference augmentation.
+    Deterministic: regex and rule heuristics only, no model, dataset or external API.
     Guarantees status is 'DRAFT'.
     """
     notes: List[str] = []
     text = prompt.lower()
     is_quai = str(mode).upper() in ("QUAI_NATIVE", "QUAI")
 
-    # If Quai mode, route or query Hashference x402 with local fallback
     if is_quai:
-        hf_res = query_hashference_llm(prompt=prompt, mode="QUAI_NATIVE")
-        if hf_res:
-            notes.append("Routed via Hashference x402 live compute network.")
-        else:
-            notes.append("Routed via Hashference x402 PoW adapter (deterministic Cyprus-1 fallback).")
+        notes.append("Quai mode: compiled locally by deterministic rules, no external service.")
 
     # Extract target contract address if present
     addr_match = re.search(r"0x[a-f0-9]{40}", prompt, re.IGNORECASE)

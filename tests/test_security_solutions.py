@@ -4,12 +4,11 @@ Verifies:
 1. Expand to 6+ words + on-chain/off-chain intentHash verification
 2. Pre/post balance & storage snapshot diffs
 3. Recursive MultiSend byte parsing & depth enforcement
-4. Strict fail-closed rule precedence (AST/EVM rules override ML completely)
+(Rule precedence over ML no longer applies: there is no ML; verdicts come only from rules R1-R12.)
 """
 
 import pytest
 from shared.checksum import compute_six_word_checksum, compute_four_word_checksum, verify_intent_hash
-from ml.inference import enforce_strict_rule_precedence, predict_transaction_anomaly
 from simulator.decoders.multisend_unpacker import flatten_transactions, unpack_multisend, decode_multisend_bytes
 from shared.api_schemas import TransactionTuple
 from eth_abi import encode
@@ -52,37 +51,6 @@ def test_intent_hash_verification():
 
     assert verify_intent_hash(vault, nonce, safe_tx_hash, expected) is True
     assert verify_intent_hash(vault, nonce, safe_tx_hash, "0x" + "0" * 64) is False
-
-
-def test_strict_rule_precedence_overrides_ml():
-    """
-    STRICT INVARIANT: AST/EVM rules override ML completely.
-    Even if ML predicts BENIGN with low probability, any deterministic rule violation forces BLOCK.
-    """
-    # Dummy benign ML prediction
-    benign_ml = {
-        "ml_anomaly_probability": 0.05,
-        "ml_classification": "BENIGN",
-        "confidence_score": "5.00%",
-        "ml_recommendation": "ALLOW"
-    }
-
-    # Case 1: No rules triggered -> preserves ML recommendation
-    res_clean = enforce_strict_rule_precedence([], benign_ml)
-    assert res_clean["ml_recommendation"] == "ALLOW"
-    assert res_clean["override_applied"] is False
-
-    # Case 2: Rule R3 (Proxy Slot Hijack) triggered -> strictly overrides to BLOCK
-    res_override = enforce_strict_rule_precedence(["R3"], benign_ml)
-    assert res_override["ml_recommendation"] == "BLOCK"
-    assert res_override["ml_classification"] == "MALICIOUS"
-    assert res_override["override_applied"] is True
-
-    # Case 3: Multiple rules (R1, R9) triggered -> strictly overrides to BLOCK
-    res_multi = enforce_strict_rule_precedence(["R1", "R9"], benign_ml)
-    assert res_multi["ml_recommendation"] == "BLOCK"
-    assert res_multi["ml_classification"] == "MALICIOUS"
-    assert "R1, R9" in res_multi["override_reason"]
 
 
 def test_recursive_multisend_nested_parsing():

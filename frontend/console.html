@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="vero.css?v=90">
+  <link rel="stylesheet" href="vero.css?v=93">
 </head>
 <body>
   <div class="app">
@@ -18,11 +18,10 @@
         <button class="side__toggle" type="button" aria-label="Collapse navigation" aria-expanded="true" aria-keyshortcuts="Control+B Meta+B" data-side-toggle><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 7-5 5 5 5"/></svg></button>
       </div>
       <nav class="side__nav"><span class="side__hover" aria-hidden="true"></span><span class="side__pill" aria-hidden="true"></span>
-        <a href="#overview" aria-current="page" data-tip="Overview"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span class="side__label">Overview</span></a>
-        <a href="#check" data-tip="Live check"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 6v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/></svg><span class="side__label">Live check</span></a>
-        <a href="#rules" data-tip="Rule hits"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg><span class="side__label">Rule hits</span></a>
-        <a href="attack.html" data-tip="Attack replay"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg><span class="side__label">Attack replay</span></a>
-        <a href="#scenarios" data-tip="Scenarios"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg><span class="side__label">Scenarios</span></a>
+        <a href="#overview" aria-current="page" data-tip="Defense stats"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span class="side__label">Defense stats</span></a>
+        <a href="#mechanisms" data-tip="Mechanisms"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 6v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/></svg><span class="side__label">Mechanisms</span></a>
+        <a href="attack.html" data-tip="Attack vs defense"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg><span class="side__label">Attack vs defense</span></a>
+        <a href="#scenarios" data-tip="Transactions"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg><span class="side__label">Transactions</span></a>
       </nav>
       <div class="side__foot">
         <a href="/docs" data-tip="API reference"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg><span class="side__label">API reference</span></a>
@@ -36,142 +35,62 @@
     <main class="main" id="overview">
       <header class="top">
         <div>
-          <h1 class="top__title">Overview</h1>
-          <p class="top__sub">Benchmark run of 55 scenarios through the Vero engine, plus live checks from this console.</p>
+          <h1 class="top__title">Attack vs defense stats</h1>
+          <p class="top__sub" data-mc-sub>Live MCMC run: generated attacks and safe transactions judged by rules R1–R12, plus live checks from this console.</p>
         </div>
         <div class="top__actions">
           <span class="chain" title="Network the console simulates against">Ethereum · chain 1</span>
           <span class="status" data-status><span class="status__dot"></span><span data-status-text>Connecting…</span></span>
-          <a class="btn" href="#check">Run a check</a>
+          <a class="btn" href="attack.html">Watch the battle</a>
         </div>
       </header>
 
-      <section class="grid grid--kpi" aria-label="Summary">
-        <article class="tile kpi" data-in>
-          <p class="kpi__label">Attacks detected</p>
-          <p class="kpi__value"><span data-count="30">30</span><span class="kpi__of">/30</span></p>
-          <p class="kpi__note">95% CI 88.6–100%</p>
-          <svg class="spark" viewBox="0 0 120 32" aria-hidden="true"><path data-spark="detect" /></svg>
-        </article>
-        <article class="tile kpi" data-in>
-          <p class="kpi__label">False positives</p>
-          <p class="kpi__value"><span data-count="0">0</span><span class="kpi__of">/25</span></p>
-          <p class="kpi__note">95% CI 0–13.3%</p>
-          <svg class="spark" viewBox="0 0 120 32" aria-hidden="true"><path data-spark="fp" /></svg>
-        </article>
-        <article class="tile kpi" data-in>
-          <p class="kpi__label">Blocked on-chain (modelled)</p>
-          <p class="kpi__value"><span data-count="30">30</span><span class="kpi__of">/30</span></p>
-          <p class="kpi__note">13 Foundry replays revert for real</p>
-          <svg class="spark" viewBox="0 0 120 32" aria-hidden="true"><path data-spark="block" /></svg>
-        </article>
-        <article class="tile kpi" data-in>
-          <p class="kpi__label">Engine latency p95</p>
-          <p class="kpi__value"><span data-kpi-p95>0.22</span><span class="kpi__of"> ms</span></p>
-          <p class="kpi__note">p50 <span data-kpi-p50>0.09</span> ms, static analysis</p>
-          <svg class="spark" viewBox="0 0 120 32" aria-hidden="true"><path data-spark="latency" /></svg>
-        </article>
+      <section class="grid grid--kpi stats" aria-label="Attack vs defense totals">
+        <article class="tile kpi kpi--atk" data-in><p class="kpi__label">Attacks thrown</p><p class="kpi__value"><span data-st="harmful">–</span></p><p class="kpi__note">Generated by MCMC red chains</p></article>
+        <article class="tile kpi kpi--def" data-in><p class="kpi__label">Stopped by the defense</p><p class="kpi__value"><span data-st="blocked">–</span><span class="kpi__of" data-st="blocked-pct"></span></p><p class="kpi__note" data-st="escapes-note">Attacks that got through: –</p></article>
+        <article class="tile kpi kpi--safe" data-in><p class="kpi__label">Safe transactions passed</p><p class="kpi__value"><span data-st="passed">–</span><span class="kpi__of" data-st="harmless-of"></span></p><p class="kpi__note" data-st="fp-note">Wrongly blocked: –</p></article>
+        <article class="tile kpi" data-in><p class="kpi__label">Engine time per transaction</p><p class="kpi__value"><span data-st="p95">–</span><span class="kpi__of"> ms</span></p><p class="kpi__note">p95 · p50 <span data-st="p50">–</span> ms</p></article>
       </section>
 
-      <section class="grid grid--charts">
-        <article class="tile tile--span2" data-in aria-labelledby="baselines-title">
-          <header class="tile__head">
-            <h2 id="baselines-title">Detection by approach</h2>
-            <ul class="legend" aria-label="Legend">
-              <li><i class="sw sw--detect"></i>Detected</li><li><i class="sw sw--block"></i>Blocked</li><li><i class="sw sw--fp"></i>False positives</li>
-            </ul>
-          </header>
-          <div class="bars" data-baselines role="img" aria-label="Grouped bars: detection, block and false-positive rates for four approaches"></div>
-        </article>
-        <article class="tile" data-in aria-labelledby="mix-title">
-          <header class="tile__head"><h2 id="mix-title">Verdict mix</h2></header>
-          <div class="donut">
-            <svg viewBox="0 0 120 120" role="img" aria-label="30 malicious scenarios blocked, 25 benign scenarios allowed">
-              <circle class="donut__track" cx="60" cy="60" r="46"/>
-              <circle class="donut__seg donut__seg--block" cx="60" cy="60" r="46" data-donut="block"/>
-              <circle class="donut__seg donut__seg--allow" cx="60" cy="60" r="46" data-donut="allow"/>
-            </svg>
-            <div class="donut__center"><b>55</b><span>scenarios</span></div>
-          </div>
-          <ul class="mix">
-            <li><i class="sw sw--block"></i>Blocked <b>30</b></li>
-            <li><i class="sw sw--allow"></i>Allowed <b>25</b></li>
+      <section class="tile" data-in aria-labelledby="duel-title">
+        <header class="tile__head">
+          <h2 id="duel-title">Attack vs defense, by attack method</h2>
+          <ul class="legend" aria-label="Legend">
+            <li><i class="sw sw--attack"></i>Attacks thrown</li><li><i class="sw sw--defense"></i>Stopped</li><li><i class="sw sw--leak"></i>Got through</li>
           </ul>
-        </article>
+        </header>
+        <div class="duelbars" data-duel role="img" aria-label="For each attack method, attacks thrown next to attacks stopped"></div>
       </section>
 
-      <section class="grid grid--charts">
-        <article class="tile tile--span2" data-in aria-labelledby="latency-title">
-          <header class="tile__head">
-            <h2 id="latency-title">Latency per scenario</h2>
-            <p class="tile__meta">ms, in run order · target under 150 ms</p>
-          </header>
-          <svg class="area" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" aria-label="Latency for each of the 55 scenarios, all under one millisecond">
-            <path class="area__fill" data-area-fill/><path class="area__line" data-area-line/>
-          </svg>
-          <div class="axis"><span>first</span><span data-area-max></span><span>55th</span></div>
-        </article>
-        <article class="tile" id="rules" data-in aria-labelledby="rules-title">
-          <header class="tile__head"><h2 id="rules-title">Rule hits</h2><p class="tile__meta">across 55 scenarios</p></header>
-          <ol class="hbars" data-rules></ol>
-        </article>
-      </section>
-
-      <section class="grid grid--charts" id="check">
-        <article class="tile tile--span2" data-in aria-labelledby="check-title">
-          <header class="tile__head">
-            <h2 id="check-title">Live check</h2>
-            <div class="seg" role="tablist" aria-label="Example transactions">
-              <button role="tab" type="button" data-example="wazirx" aria-selected="true">WazirX swap</button>
-              <button role="tab" type="button" data-example="bybit" aria-selected="false">Bybit delegatecall</button>
-              <button role="tab" type="button" data-example="approve" aria-selected="false">Unlimited approval</button>
-              <button role="tab" type="button" data-example="benign" aria-selected="false">Normal transfer</button>
-            </div>
-          </header>
-          <div class="check">
-            <div class="check__in">
-              <label for="calldata">Calldata</label>
-              <textarea id="calldata" rows="4" spellcheck="false" data-check-input></textarea>
-              <div class="check__row">
-                <label class="field"><span>Sent to</span><input type="text" spellcheck="false" data-check-to></label>
-                <label class="toggle"><input type="checkbox" data-check-delegate> Delegatecall</label>
-              </div>
-            </div>
-            <output class="verdict" data-result aria-live="polite">
-              <span class="verdict__badge" data-result-badge>Checking</span>
-              <span class="verdict__risk"><span data-result-risk>–</span><small>/100 risk</small></span>
-              <span class="meter"><i data-result-meter></i></span>
-              <ul class="verdict__list" data-result-list></ul>
-              <span class="verdict__words">Phone words <b data-result-words>…</b></span>
-            </output>
-          </div>
-        </article>
-        <article class="tile" data-in aria-labelledby="feed-title">
-          <header class="tile__head"><h2 id="feed-title">Live feed</h2><p class="tile__meta">checks from this console</p></header>
-          <ol class="feed" data-feed><li class="feed__empty">No checks yet.</li></ol>
-        </article>
+      <section class="tile" id="mechanisms" data-in aria-labelledby="mech-title">
+        <header class="tile__head">
+          <h2 id="mech-title">Defense mechanisms</h2>
+          <p class="tile__meta" data-st="mech-meta">attacks each one stopped in this run</p>
+        </header>
+        <ol class="mechs" data-mechs></ol>
+        <p class="fine">A single attack can trip several mechanisms, so the bars add up to more than the attacks thrown. A mechanism at 0 was not exercised by this attacker's mutations, not switched off. Verdicts come only from these rules and their fixed severities; on-chain, VeroGuard reverts what goes beyond the signed policy.</p>
       </section>
 
       <section class="tile" id="scenarios" data-in aria-labelledby="scen-title">
         <header class="tile__head">
-          <h2 id="scen-title">Scenarios</h2>
+          <h2 id="scen-title">Generated transactions</h2>
           <div class="seg seg--small" role="tablist" aria-label="Filter scenarios">
             <button role="tab" type="button" data-filter="all" aria-selected="true">All</button>
-            <button role="tab" type="button" data-filter="malicious" aria-selected="false">Malicious</button>
-            <button role="tab" type="button" data-filter="benign" aria-selected="false">Benign</button>
+            <button role="tab" type="button" data-filter="harmful" aria-selected="false">Attacks</button>
+            <button role="tab" type="button" data-filter="harmless" aria-selected="false">Safe</button>
           </div>
         </header>
         <div class="table-wrap">
           <table class="table">
-            <thead><tr><th scope="col">ID</th><th scope="col">Set</th><th scope="col">Label</th><th scope="col">Rules fired</th><th scope="col">Verdict</th><th scope="col" class="num">Latency</th></tr></thead>
+            <thead><tr><th scope="col">#</th><th scope="col">Side</th><th scope="col">Transaction</th><th scope="col">Rules fired</th><th scope="col">Verdict</th><th scope="col" class="num">Latency</th></tr></thead>
             <tbody data-table></tbody>
           </table>
         </div>
-        <p class="fine">Scenarios are team-authored; the held-out set still needs an outside author. On-chain block rate is modelled from HIGH and CRITICAL verdicts.</p>
+        <p class="fine" data-mc-fine>Every row is generated by the MCMC search in this page load; nothing comes from a dataset or a sample list. Side is decided by what the transaction really does, separately from the verdict.</p>
       </section>
     </main>
   </div>
-  <script src="vero.js?v=43"></script>
+  <script src="vero.js?v=47"></script>
   <script src="alive.js?v=1"></script>
 </body>
 </html>

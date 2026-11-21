@@ -49,7 +49,6 @@ def cmd_status(args):
                 print("  ⛏️ Quai Subsystem :", qdata.get("subsystem"))
                 print("  📍 Active Shard   :", qdata.get("active_shard"), f"(Prefix: {qdata.get('zone_prefix')}, Coords: {qdata.get('coordinates')})")
                 print("  💰 Dual Assets    :", list(qdata.get("dual_assets", {}).keys()))
-                print("  🧠 Hashference    :", qdata.get("hashference_x402", {}).get("provider"))
                 print("  🔒 PoW Work Gate  :", "ENABLED" if qdata.get("work_gate_enabled") else "OFFLINE_FALLBACK")
                 print("  ⚡ PoEM Consensus :", qdata.get("consensus"), "\n")
         except Exception as e:

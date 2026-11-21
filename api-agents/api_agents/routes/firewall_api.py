@@ -33,7 +33,6 @@ from api_agents.models.schemas import (
 from api_agents.utils.four_word_checksum import compute_four_word_checksum
 from api_agents.utils.keccak import keccak256
 from simulator.analyzers.poisoning import detect_quai_shard_prefix_spoofing
-from api_agents.agents.hashference_client import get_hashference_telemetry
 
 router = APIRouter(prefix="/v1", tags=["Firewall"])
 
@@ -339,7 +338,7 @@ async def generate_audit_receipt(
 
 @router.get("/quai/status")
 async def quai_subsystem_status():
-    """Reports active status of the Quai Network subsystem, Hashference x402, and PoEM telemetry."""
+    """Reports the configuration of the Quai Network subsystem (no external or fabricated telemetry)."""
     return {
         "status": "active",
         "subsystem": "QUAI_NATIVE",
@@ -351,6 +350,5 @@ async def quai_subsystem_status():
             "qi": {"symbol": "QI", "type": "Energy Dollar Token", "status": "TRACKED"},
         },
         "consensus": "PoEM (Proof-of-Entropy-Minima)",
-        "hashference_x402": get_hashference_telemetry(),
         "work_gate_enabled": os.getenv("QUAI_WORK_GATE", "false").lower() == "true",
     }

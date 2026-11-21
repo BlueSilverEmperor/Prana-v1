@@ -78,19 +78,13 @@ def start_web_server():
 
 
 def run_attacker_exploit(name: str, payload: dict, expected_revert: str):
-    from api_agents.integrations.crypto_api import check_goplus_address_security, compute_fiat_protected_value
-
     target_addr = payload.get('safe_address', '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045')
-    goplus_intel = check_goplus_address_security(target_addr)
-    fiat_val = compute_fiat_protected_value('USDT', 1_000_000.0)
 
     print(f"\n{BOLD}{RED}[ATTACKER LAUNCHING]{RESET} {BOLD}{name}{RESET}")
     print(f" Target Safe Vault : {target_addr}")
     print(f" Calldata Method   : {payload.get('data')[:10]}...")
     print(f" Injected Bytecode : {payload.get('data')[:66]}...")
     print(f" Expected Revert   : {YELLOW}{expected_revert}{RESET}")
-    print(f" GoPlus Intel API  : {CYAN}{goplus_intel['provider']} (Status: {goplus_intel['status']}){RESET}")
-    print(f" CoinGecko Live Val: {GREEN}${fiat_val['total_protected_usd']:,.2f} USD Protected ({fiat_val['source']}){RESET}")
 
     url = "http://127.0.0.1:8000/v1/simulate"
     req_data = json.dumps(payload).encode("utf-8")

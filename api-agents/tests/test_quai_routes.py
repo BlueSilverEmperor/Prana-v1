@@ -1,11 +1,11 @@
 """
-Integration tests for Quai Network routes, X-Vero-Engine header, Hashference x402, and PoW work gate.
+Integration tests for Quai Network routes, X-Vero-Engine header, and the x402 PoW work gate.
 """
 
 import unittest
 from fastapi.testclient import TestClient
 from api_agents.main import app
-from api_agents.agents.hashference_client import get_hashference_telemetry, solve_payment_required
+from api_agents.agents.hashference_client import solve_payment_required
 from api_agents.agents.nl_intent_compiler import compile_nl_to_intent_policy
 
 
@@ -27,7 +27,7 @@ class TestQuaiRoutes(unittest.TestCase):
         self.assertEqual(data["quai_shard"], "cyprus1")
 
     def test_quai_status_endpoint(self):
-        """Verifies /v1/quai/status returns active shard, dual assets, and Hashference status."""
+        """Verifies /v1/quai/status returns active shard and dual assets, with no external telemetry."""
         res = self.client.get("/v1/quai/status")
         self.assertEqual(res.status_code, 200)
         data = res.json()
@@ -38,7 +38,7 @@ class TestQuaiRoutes(unittest.TestCase):
         self.assertIn("quai", data["dual_assets"])
         self.assertIn("qi", data["dual_assets"])
         self.assertIn("PoEM", data["consensus"])
-        self.assertIn("provider", data["hashference_x402"])
+        self.assertNotIn("hashference_x402", data)
 
     def test_simulate_with_quai_header(self):
         """Verifies /v1/simulate processes Quai native transactions with X-Vero-Engine: quai."""
@@ -111,12 +111,12 @@ class TestQuaiRoutes(unittest.TestCase):
         self.assertEqual(res_paid.status_code, 200)
         self.assertEqual(res_paid.json()["decision"], "ALLOW")
 
-    def test_hashference_nl_intent_compilation(self):
-        """Verifies that natural language compiler supports Quai dual-currency extraction and Hashference note."""
+    def test_quai_nl_intent_compilation_is_local(self):
+        """Verifies the natural language compiler extracts Quai dual-currency caps locally, with no external service."""
         prompt = "Allow Cyprus-1 vault to send up to 5 QUAI and max 500 QI to vendor 0x0027a140Aa3E981100a9becA4E685f962f0cF6C9"
         draft = compile_nl_to_intent_policy(prompt, self.safe_c1, chain_id=15000, mode="QUAI_NATIVE")
         self.assertEqual(draft.status, "DRAFT")
-        self.assertTrue(any("Hashference" in note for note in draft.compiler_notes))
+        self.assertTrue(any("no external service" in note for note in draft.compiler_notes))
         self.assertEqual(draft.message.shardZone, "cyprus1")
         self.assertEqual(draft.message.qiValueCap, "500000000")  # 500 * 1e6
 

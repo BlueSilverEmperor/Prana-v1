@@ -169,6 +169,29 @@
     }
   }
 
+  /* --------------------------------------------- proof: a live MCMC run -- */
+  // Generated on this page load by the red/green sampler; no dataset or sample list is involved.
+  const PROOF_RUN = { steps: 300, chains: 4, seed: 7, mode: "both" };
+  async function liveProof() {
+    const set = (key, text) => { const n = $(`[data-mc="${key}"]`); if (n) n.textContent = text; };
+    try {
+      const res = await fetch(`${API}/v1/redteam/mcmc`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(PROOF_RUN) });
+      if (!res.ok) throw new Error(`engine answered ${res.status}`);
+      const r = await res.json();
+      const harmless = r.unique_variants - r.harmful_unique;
+      set("unique", r.unique_variants.toLocaleString());
+      set("harmful", r.harmful_unique.toLocaleString());
+      set("harmless", harmless.toLocaleString());
+      set("blocked", `${(r.harmful_unique - r.escapes.length).toLocaleString()} / ${r.harmful_unique.toLocaleString()}`);
+      set("passed", `${(harmless - r.false_positives.length).toLocaleString()} / ${harmless.toLocaleString()}`);
+      set("escapes-note", r.escapes.length ? `${r.escapes.length} got through` : "none got through");
+      set("fp-note", r.false_positives.length ? `${r.false_positives.length} wrongly blocked` : "none wrongly blocked");
+    } catch (err) {
+      set("escapes-note", `run unavailable (${err.message})`);
+      set("fp-note", "start the API to run it");
+    }
+  }
+
   /* ------------------------------------------------------------------ loop -- */
   function frame() {
     // read everything first, then write, so no frame forces a layout mid-paint
@@ -187,5 +210,6 @@
   mineTo(0);
   hashChain().catch(() => { /* hashing is decoration on top of the page; placeholders stay */ });
   liveVerdict();
+  liveProof();
   requestAnimationFrame(frame);
 })();

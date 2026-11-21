@@ -1,22 +1,14 @@
-/* Vero Console: renders the real benchmark run (data/benchmark.json) and live checks against /v1/simulate. */
+/* Vero Console: renders a live red/green MCMC run (/v1/redteam/mcmc) and live checks against /v1/simulate. */
 (() => {
   "use strict";
   const API = /^(3000|4500|5173)$/.test(location.port) || location.protocol === "file:" ? "http://localhost:8000" : location.origin;
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const SAFE = "0x1111111111111111111111111111111111111111";
-  const pad = (h) => h.replace(/^0x/, "").padStart(64, "0");
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const RULE_NAMES = { R1: "Approvals", R2: "Permits", R3: "Logic swap", R4: "Delegatecall", R5: "Owners", R6: "Guard", R7: "Modules",
     R8: "EIP-7702", R9: "Undeclared recipient", R10: "Outflow cap", R11: "Lookalike token", R12: "Threat registry",
     "P33-POISON": "Address poisoning", "B26-FIRST-RECIPIENT": "First recipient", "B26-VAULT-SHARE": "Vault share", "B26-NEW-CONTRACT": "New contract" };
-  const EXAMPLES = {
-    wazirx: { label: "WazirX swap", to: SAFE, op: 0, data: "0x3659cfe6" + pad("babababababababababababababababababababa") },
-    bybit: { label: "Bybit delegatecall", to: "0xbadc0de0badc0de0badc0de0badc0de0badc0de0", op: 1, data: "0xa9059cbb" + pad("babababababababababababababababababababa") + pad("0") },
-    approve: { label: "Unlimited approval", to: "0xdac17f958d2ee523a2206206994597c13d831ec7", op: 0, data: "0x095ea7b3" + pad("e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0") + "f".repeat(64) },
-    benign: { label: "Normal transfer", to: "0xdac17f958d2ee523a2206206994597c13d831ec7", op: 0, data: "0xa9059cbb" + pad("4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f") + pad("5f5e100") },
-  };
 
   /* ---------------------------------------------------------- chart helpers -- */
   function linePath(values, w, h, padY = 3) {
@@ -48,103 +40,120 @@
     requestAnimationFrame(tick);
   }
 
-  /* --------------------------------------------------------- benchmark data -- */
-  async function loadBenchmark() {
-    const res = await fetch("data/benchmark.json");
-    if (!res.ok) throw new Error(`benchmark.json HTTP ${res.status}`);
-    return res.json();
+  /* ------------------------------------------------------ live MCMC run data -- */
+  // The overview is a fresh red/green MCMC run, not a dataset: generated attacks and safe transactions,
+  // judged by rules R1-R12. A fixed seed keeps the overview stable between loads; the attack page reseeds.
+  const OVERVIEW_RUN = { steps: 300, chains: 4, seed: 7, mode: "both" };
+  const TABLE_MAX = 120;
+  const METHOD_LABELS = { approve: "approve", increaseAllowance: "increaseAllowance", transfer: "transfer", transferFrom: "transferFrom",
+    ethSend: "ETH send", upgradeTo: "logic swap", addOwnerWithThreshold: "owner takeover", enableModule: "module", setGuard: "guard removal" };
+
+  async function loadRun() {
+    const res = await fetch(`${API}/v1/redteam/mcmc`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(OVERVIEW_RUN) });
+    if (!res.ok) throw new Error(`MCMC run HTTP ${res.status}`);
+    const r = await res.json();
+    return { ...r, harmless_unique: r.unique_variants - r.harmful_unique };
   }
-  function renderKpis(bench) {
-    const m = bench.metrics;
-    $("[data-kpi-p95]").textContent = m.p95LatencyMs.toFixed(2);
-    $("[data-kpi-p50]").textContent = m.p50LatencyMs.toFixed(2);
-    const mal = bench.outcomes.filter((o) => o.label === "malicious");
-    const ben = bench.outcomes.filter((o) => o.label === "benign");
-    let a = 0, b = 0;
-    const series = {
-      detect: mal.map((o) => (a += o.flagged ? 1 : 0)),
-      block: mal.map((o, i) => (o.flagged ? i + 1 : i)),
-      fp: ben.map((o) => (b += o.flagged ? 1 : 0)),
-      latency: bench.outcomes.map((o) => o.latency_ms),
-    };
-    $$("[data-spark]").forEach((p) => {
-      const vals = series[p.dataset.spark];
-      p.setAttribute("d", linePath(vals, 120, 32));
-      if (p.dataset.spark === "fp") p.closest("svg").classList.add("spark--red");
-    });
-    $$("[data-count]").forEach((n) => { n.dataset.end = n.dataset.count; });
+
+  // Every mechanism the engine uses, what it stops, and its id in the run's rule hits.
+  const MECHANISMS = [
+    ["R1", "Approvals", "Unlimited allowances, undeclared spenders, allowances above the declared ceiling"],
+    ["R2", "Permits", "Off-chain permit signatures that hand over tokens"],
+    ["R3", "Logic swap", "A proxy or wallet implementation being replaced"],
+    ["R4", "Delegatecall", "Delegatecall into code that is not a trusted library"],
+    ["R5", "Owners and threshold", "Owners added or removed, signing threshold lowered"],
+    ["R6", "Guard", "The transaction guard being changed or removed"],
+    ["R7", "Modules", "Modules enabled that can move funds without signatures"],
+    ["R8", "EIP-7702", "The account's code delegated to another contract"],
+    ["R9", "Undeclared recipient", "Value sent to an address or asset the signer never declared"],
+    ["R10", "Outflow cap", "More value leaving than the declared ceiling"],
+    ["R11", "Lookalike token", "A token contract imitating a known one"],
+    ["R12", "Threat registry", "A target on the known-drainer registry"],
+    ["P33-POISON", "Address poisoning", "A recipient that only looks like a saved contact"],
+    ["B26-FIRST-RECIPIENT", "First-time recipient", "Large value to an address never paid before"],
+    ["B26-VAULT-SHARE", "Vault share", "A large share of the vault leaving at once"],
+    ["B26-NEW-CONTRACT", "New contract", "Calls into a contract deployed moments ago"],
+    ["G28-GAS-CEILING", "Gas ceiling", "Gas fees above the signer's ceiling"],
+    ["C31-CHAIN", "Chain binding", "A transaction built for a different chain"],
+    ["B36-BRIDGE", "Bridge destination", "Funds bridged to an unknown destination"],
+    ["DECODE", "Fail closed", "Calldata the engine cannot decode is blocked, never guessed"],
+  ];
+
+  function renderStats(r) {
+    const set = (key, text) => { const n = $(`[data-st="${key}"]`); if (n) n.textContent = text; };
+    const blocked = r.harmful_unique - r.escapes.length;
+    const passed = r.harmless_unique - r.false_positives.length;
+    set("harmful", r.harmful_unique.toLocaleString());
+    set("blocked", blocked.toLocaleString());
+    set("blocked-pct", r.harmful_unique ? ` · ${((blocked / r.harmful_unique) * 100).toFixed(1)}%` : "");
+    set("escapes-note", `Attacks that got through: ${r.escapes.length}`);
+    set("passed", passed.toLocaleString());
+    set("harmless-of", `/${r.harmless_unique}`);
+    set("fp-note", `Wrongly blocked: ${r.false_positives.length}`);
+    set("p95", r.latency_p95_ms.toFixed(2));
+    set("p50", r.latency_p50_ms.toFixed(2));
+    set("mech-meta", `attacks each one stopped, across ${r.harmful_unique.toLocaleString()} generated attacks`);
+    $("[data-mc-sub]").textContent = `Live MCMC run, seed ${r.seed}: ${r.unique_variants.toLocaleString()} generated transactions ` +
+      `(${r.harmful_unique} attacks, ${r.harmless_unique} safe) against rules R1–R12 and the shields. No dataset, no sample list.`;
   }
-  function renderBaselines(bench) {
-    const LABELS = { "plain-wallet": "Plain wallet", "static-blocklist": "Static blocklist", "warnings-only": "Warnings only", "full-vero": "Full Vero" };
-    const host = $("[data-baselines]");
-    host.replaceChildren(...bench.baselines.map((b, gi) => {
-      const g = el("div", "bars__group");
-      const cols = el("div", "bars__cols");
-      [["detect", b.detection], ["block", b.block], ["fp", b.false_positive]].forEach(([kind, r], ci) => {
-        const c = el("span", `bars__col bars__col--${kind}`);
-        c.style.height = `${Math.max(r.rate, 0.012) * 100}%`;
-        c.dataset.s = "1";
-        c.style.setProperty("--d", `${gi * 90 + ci * 40}ms`);
-        c.title = `${r.successes}/${r.trials} (${(r.rate * 100).toFixed(1)}%), 95% CI ${(r.ci95[0] * 100).toFixed(1)}–${(r.ci95[1] * 100).toFixed(1)}%`;
-        cols.append(c);
+
+  function renderDuel(r) {
+    const entries = Object.entries(r.attacks_by_primitive);
+    const max = Math.max(1, ...entries.map(([, c]) => c.thrown));
+    $("[data-duel]").replaceChildren(...entries.map(([method, c], gi) => {
+      const group = el("div", "duelbars__group");
+      const cols = el("div", "duelbars__cols");
+      [["attack", c.thrown], ["defense", c.stopped], ["leak", c.thrown - c.stopped]].forEach(([kind, n], ci) => {
+        const col = el("span", `duelbars__col duelbars__col--${kind}`);
+        col.style.height = `${Math.max(n / max, n ? 0.02 : 0.004) * 100}%`;
+        col.dataset.s = "1";
+        col.style.setProperty("--d", `${gi * 60 + ci * 30}ms`);
+        col.title = `${kind === "attack" ? "thrown" : kind === "defense" ? "stopped" : "got through"}: ${n}`;
+        col.append(el("i", null, String(n)));
+        cols.append(col);
       });
-      const label = el("p", "bars__label");
-      label.append(el("b", null, `${(b.detection.rate * 100).toFixed(0)}%`), document.createTextNode(LABELS[b.name] || b.name));
-      g.append(cols, label);
-      return g;
+      const label = el("p", "duelbars__label", METHOD_LABELS[method] || method);
+      group.append(cols, label);
+      return group;
     }));
   }
-  function renderDonut(bench) {
-    const C = 2 * Math.PI * 46;
-    const blocked = bench.outcomes.filter((o) => o.flagged).length;
-    const allowed = bench.outcomes.length - blocked;
-    const segB = $('[data-donut="block"]'), segA = $('[data-donut="allow"]');
-    segB.dataset.dash = `${(blocked / bench.outcomes.length) * C - 2} ${C}`;
-    segA.dataset.dash = `${(allowed / bench.outcomes.length) * C - 2} ${C}`;
-    segA.style.strokeDashoffset = `${-(blocked / bench.outcomes.length) * C}`;
-  }
-  function renderArea(bench) {
-    const vals = bench.outcomes.map((o) => o.latency_ms);
-    const line = linePath(vals, 600, 180, 12);
-    $("[data-area-line]").setAttribute("d", line);
-    $("[data-area-fill]").setAttribute("d", `${line} L600 180 L0 180 Z`);
-    $("[data-area-max]").textContent = `peak ${Math.max(...vals).toFixed(2)} ms`;
-  }
-  function renderRules(bench) {
-    const counts = {};
-    bench.outcomes.forEach((o) => o.fired.forEach((r) => { counts[r] = (counts[r] || 0) + 1; }));
-    const rows = Object.entries(counts).sort((x, y) => y[1] - x[1]).slice(0, 10);
-    const max = rows[0] ? rows[0][1] : 1;
-    $("[data-rules]").replaceChildren(...rows.map(([rule, n], i) => {
-      const li = el("li");
-      const name = el("span", "name", `${rule.startsWith("R") ? rule + " · " : ""}${RULE_NAMES[rule] || rule}`);
+
+  function renderMechanisms(r) {
+    const hits = r.rule_hits || {};
+    const max = Math.max(1, ...MECHANISMS.map(([id]) => hits[id] || 0));
+    $("[data-mechs]").replaceChildren(...MECHANISMS.map(([id, name, stops], i) => {
+      const n = hits[id] || 0;
+      const li = el("li", n ? "" : "is-idle");
+      const head = el("div", "mechs__head");
+      head.append(el("code", null, id), el("b", null, name), el("span", "mechs__n", n.toLocaleString()));
       const track = el("span", "track");
-      const fill = el("span", `fill${rule.startsWith("R") ? "" : " fill--shield"}`);
+      const fill = el("span", "fill");
       fill.dataset.s = String(n / max);
-      fill.style.setProperty("--d", `${i * 50}ms`);
+      fill.style.setProperty("--d", `${i * 35}ms`);
       track.append(fill);
-      li.append(name, track, el("span", "n", String(n)));
+      li.append(head, el("p", "mechs__stops", stops), track);
       return li;
     }));
   }
-  let tableFilter = "all", benchData = null;
+
+  let tableFilter = "all", runData = null;
   function renderTable() {
-    const rows = benchData.outcomes.filter((o) => tableFilter === "all" || o.label === tableFilter);
-    $("[data-table]").replaceChildren(...rows.map((o) => {
+    const rows = runData.trace.filter((t) => tableFilter === "all" || (tableFilter === "harmful") === t.harmful).slice(0, TABLE_MAX);
+    $("[data-table]").replaceChildren(...rows.map((t, i) => {
       const tr = el("tr");
       const fired = el("td");
-      (o.fired.length ? o.fired : ["none"]).forEach((r) => fired.append(el("code", null, r)));
-      const verdict = o.flagged ? "BLOCK" : "ALLOW";
+      (t.rules.length ? t.rules : ["none"]).forEach((r) => fired.append(el("code", null, r)));
+      const verdict = t.blocked ? "BLOCK" : "ALLOW";
       const vtd = el("td"); vtd.append(el("span", `pill pill--${verdict}`, verdict === "BLOCK" ? "Blocked" : "Allowed"));
-      const ltd = el("td"); ltd.append(el("span", `pill pill--${o.label}`, o.label));
-      tr.append(el("td", null, o.id), el("td", null, o.set), ltd, fired, vtd, el("td", "num", `${o.latency_ms.toFixed(2)} ms`));
+      const side = el("td"); side.append(el("span", `pill pill--${t.harmful ? "malicious" : "benign"}`, t.harmful ? "attack" : "safe"));
+      tr.append(el("td", null, String(i + 1)), side, el("td", "tx-desc", t.attempt), fired, vtd, el("td", "num", `${t.ms.toFixed(2)} ms`));
       return tr;
     }));
   }
   $$("[data-filter]").forEach((b) => b.addEventListener("click", () => {
     tableFilter = b.dataset.filter;
     $$("[data-filter]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    if (benchData) renderTable();
+    if (runData) renderTable();
   }));
 
   /* -------------------------------------------- entrances trigger the charts -- */
@@ -160,74 +169,6 @@
     const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { reveal(e.target); io.unobserve(e.target); } }), { threshold: 0.15 });
     $$("[data-in]").forEach((t) => io.observe(t));
   }
-
-  /* -------------------------------------------------------------- live check -- */
-  const input = $("[data-check-input]"), toInput = $("[data-check-to]"), delegate = $("[data-check-delegate]");
-  const result = $("[data-result]"), tabs = $$("[data-example]");
-  let seq = 0, currentLabel = EXAMPLES.wazirx.label;
-  async function simulate(to, data, op) {
-    const res = await fetch(`${API}/v1/simulate`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chain_id: 1, safe_address: SAFE, to, data, value: "0", nonce: 0, operation: op }) });
-    if (!res.ok) {
-      let detail = res.statusText;
-      try { const b = await res.json(); detail = typeof b.detail === "string" ? b.detail : (b.detail || []).map((d) => d.msg).join("; "); } catch { /* keep */ }
-      throw Object.assign(new Error(detail), { status: res.status });
-    }
-    return res.json();
-  }
-  function addFeed(r) {
-    const feed = $("[data-feed]");
-    $(".feed__empty", feed)?.remove();
-    const li = el("li");
-    li.append(el("span", `tag tag--${r.decision}`, r.decision === "BLOCK" ? "Blocked" : r.decision === "ALLOW" ? "Allowed" : "Review"),
-      el("span", "what", `${currentLabel} · ${(r.flags || []).join(", ") || "no rule"}`), el("span", "ms", `${r.simulation_ms} ms`),
-      el("span", "hash", `tx ${r.raw_tx_hash}`));
-    feed.prepend(li);
-    while (feed.children.length > 8) feed.lastChild.remove();
-  }
-  function render(r) {
-    result.dataset.decision = r.decision;
-    $("[data-result-badge]").textContent = { BLOCK: "BLOCKED", ALLOW: "ALLOWED", WARN: "REVIEW" }[r.decision] || r.decision;
-    $("[data-result-risk]").textContent = String(r.risk_score);
-    $("[data-result-meter]").style.setProperty("--s", String(Math.max(0.02, r.risk_score / 100)));
-    const items = r.deterministic_human_warnings || [];
-    $("[data-result-list]").replaceChildren(...(items.length ? items : ["The real effect matches what was sent."]).map((t) => el("li", null, t)));
-    $("[data-result-words]").textContent = (r.four_word_checksum || "").split("-").join(" · ");
-    addFeed(r);
-    document.dispatchEvent(new CustomEvent("vero:verdict", { detail: { result: r, label: currentLabel } }));
-  }
-  function showProblem(title, detail) {
-    delete result.dataset.decision;
-    $("[data-result-badge]").textContent = title;
-    $("[data-result-risk]").textContent = "–";
-    $("[data-result-meter]").style.setProperty("--s", "0");
-    $("[data-result-list]").replaceChildren(el("li", null, detail));
-  }
-  async function check() {
-    const mine = ++seq;
-    try {
-      const r = await simulate(toInput.value.trim(), input.value.trim(), delegate.checked ? 1 : 0);
-      if (mine === seq) render(r);
-    } catch (err) {
-      if (mine !== seq) return;
-      if (err.status === 422) showProblem("INVALID", err.message);
-      else showProblem("OFFLINE", "Start the API: cd api-agents && uvicorn api_agents.main:app --port 8000");
-    }
-  }
-  function choose(key) {
-    const ex = EXAMPLES[key];
-    input.value = ex.data; toInput.value = ex.to; delegate.checked = ex.op === 1; currentLabel = ex.label;
-    tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.example === key)));
-    check();
-  }
-  tabs.forEach((t) => t.addEventListener("click", () => choose(t.dataset.example)));
-  let debounce;
-  [input, toInput].forEach((n) => n.addEventListener("input", () => {
-    currentLabel = "Custom";
-    tabs.forEach((t) => t.setAttribute("aria-selected", "false"));
-    clearTimeout(debounce); debounce = setTimeout(check, 320);
-  }));
-  delegate.addEventListener("change", check);
 
   /* ---------------------------------------------------------- engine status -- */
   async function health() {
@@ -273,12 +214,11 @@
   navLinks.map((a) => $(a.getAttribute("href"))).filter(Boolean).forEach((s) => navIo.observe(s));
 
   /* ------------------------------------------------------------------ boot -- */
-  loadBenchmark().then((bench) => {
-    benchData = bench;
-    renderKpis(bench); renderBaselines(bench); renderDonut(bench); renderArea(bench); renderRules(bench); renderTable();
+  loadRun().then((r) => {
+    runData = r;
+    renderStats(r); renderDuel(r); renderMechanisms(r); renderTable();
   }).catch((err) => {
-    $(".top__sub").textContent = `Benchmark data could not be loaded (${err.message}).`;
+    $("[data-mc-sub]").textContent = `The live MCMC run could not load (${err.message}). Start the API and reload.`;
   }).finally(observeTiles);
   health();
-  choose("wazirx");
 })();

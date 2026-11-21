@@ -138,25 +138,25 @@
     </div>
   </section>
 
-  <!-- 5 · WHY IT HOLDS: flow + reveal + count. The real benchmark, with its interval. -->
+  <!-- 5 · WHY IT HOLDS: flow + reveal. A live MCMC run against the rules, generated on this page load. -->
   <section class="act act--flow" data-sc-act="flow" data-act="4">
     <div class="split">
-      <div class="side side--l" data-label="Other checks">
-        <h2 class="sc-display sc-display--md">Other ways to check</h2>
+      <div class="side side--l" data-label="The attacker">
+        <h2 class="sc-display sc-display--md">An attacker that learns</h2>
         <figure class="ledger" data-sc-reveal="left" data-sc-reveal-at="0.12 0.42">
-          <div class="ledger__row"><span>Plain wallet</span><b>0 / 30</b><small>caught</small></div>
-          <div class="ledger__row"><span>Static blocklist</span><b>3 / 30</b><small>caught</small></div>
-          <div class="ledger__row"><span>Warnings only</span><b>0 / 30</b><small>stopped, though all 30 were flagged</small></div>
+          <div class="ledger__row"><span>Transactions it generated</span><b data-mc="unique">–</b><small>by MCMC on this page load, no dataset</small></div>
+          <div class="ledger__row"><span>Attacks among them</span><b data-mc="harmful">–</b><small>mutated: method, amount, recipient, delegatecall, nesting</small></div>
+          <div class="ledger__row"><span>Safe ones among them</span><b data-mc="harmless">–</b><small>payments within what the signer declared</small></div>
         </figure>
       </div>
       <div class="side side--r" data-label="Vero">
-        <h2 class="sc-display sc-display--md">Vero, same 55 scenarios</h2>
+        <h2 class="sc-display sc-display--md">Vero, against all of them</h2>
         <figure class="ledger ledger--vero" data-sc-reveal="right" data-sc-reveal-at="0.18 0.48">
-          <div class="ledger__row"><span>Attacks caught and stopped</span><b><span data-sc-count="0 30" data-sc-count-at="0.22 0.5">30</span> / 30</b><small>95% interval 88.6 to 100%</small></div>
-          <div class="ledger__row"><span>Safe transactions blocked</span><b>0 / 25</b><small>95% interval 0 to 13.3%</small></div>
-          <div class="ledger__row"><span>Exploit replays reverted on-chain</span><b><span data-sc-count="0 13" data-sc-count-at="0.26 0.54">13</span></b><small>Foundry, with 4 fuzzed invariants</small></div>
+          <div class="ledger__row"><span>Attacks blocked</span><b data-mc="blocked">–</b><small data-mc="escapes-note">waiting for the run</small></div>
+          <div class="ledger__row"><span>Safe transactions passed</span><b data-mc="passed">–</b><small data-mc="fp-note">waiting for the run</small></div>
+          <div class="ledger__row"><span>Exploit replays reverted on-chain</span><b>13</b><small>Foundry, with 4 fuzzed invariants</small></div>
         </figure>
-        <p class="fine">Scenarios are written by the team; an outside held-out set is still to come. No AI decides a verdict: rules R1 to R12 are deterministic.</p>
+        <p class="fine">No AI and no dataset decide a verdict: rules R1 to R12 and their fixed weights do. <a href="attack.html?autoplay">Watch the attacker live</a>.</p>
       </div>
     </div>
   </section>
@@ -191,6 +191,6 @@
 
 <script src="scrollcraft.js"></script>
 <script>ScrollCraft.mount(document.body);</script>
-<script src="landing.js?v=3"></script>
+<script src="landing.js?v=4"></script>
 </body>
 </html>

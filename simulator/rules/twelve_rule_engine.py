@@ -28,14 +28,22 @@ def r1_approvals(inp: AnalysisInput) -> list[RiskAlert]:
         if ap.amount in ("0", "NONE"):
             continue
         unlimited, declared = _is_unlimited(ap.amount), inp.declared(ap.spender)
+        # A declared spender still may not be allowed to pull more than the signer declared: an allowance
+        # is a future outflow, so it is held to the same ceiling (found by the MCMC red team).
+        # maxOutflowWei "0" on an approval-only intent means no ceiling was declared, so only a positive one binds.
+        ceiling = int(inp.policy.maxOutflowWei) if declared else 0
+        above_ceiling = ceiling > 0 and (unlimited or (ap.amount.isdigit() and int(ap.amount) > ceiling))
         if unlimited and not declared:
             sev = "CRITICAL"
+        elif above_ceiling:
+            sev = "HIGH"
         elif unlimited or not declared:
             sev = "MEDIUM" if declared or inp.policy is None else "HIGH"
         else:
             continue
-        kind = "UNLIMITED" if unlimited else "an undeclared"
-        out.append(alert("R1", sev, f"Grants {kind} approval on {checksum(ap.token)} to {checksum(ap.spender)}",
+        kind = "UNLIMITED" if unlimited else "an above-ceiling" if above_ceiling else "an undeclared"
+        suffix = f" (declared ceiling {ceiling})" if above_ceiling else ""
+        out.append(alert("R1", sev, f"Grants {kind} approval on {checksum(ap.token)} to {checksum(ap.spender)}{suffix}",
                          token=ap.token, spender=ap.spender, amount=ap.amount))
     return out
 

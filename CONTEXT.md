@@ -384,10 +384,10 @@ Located in `contracts/src/QuaiVeroAdapter.sol`, inherits `VeroGuard.sol` without
 - **Shard-Prefix Poisoning Shield (`simulator/analyzers/poisoning.py`):** Flagged as rule `Q33-SHARD-SPOOF`. Detects vanity lookalike addresses attempting to exploit cross-shard confusion where the first-4 and last-4 hex characters match but the high-order shard prefix differs.
 - **Plain-English Renderer:** Formats `$QUAI` and `$QI (Energy Dollar)` balances natively in simulation summaries.
 
-### F. Hashference (`x402`) & HTTP 402 Proof-of-Work Gate
-- **Hashference x402 Compute Client (`api-agents/agents/hashference_client.py`):** Routes bounded NL compiler and threat triage queries to Hashference decentralized inference endpoints. Implements a SHA-256d Proof-of-Work challenge solver (`solve_x402_pow_challenge`) to pay for compute via `x402` headers, falling back gracefully to deterministic local templates when offline.
+### F. HTTP 402 Proof-of-Work Gate (`x402`)
+- **PoW solver (`api-agents/agents/hashference_client.py`):** Local SHA-256d solver for the work gate (`solve_x402_pow_challenge`, `solve_payment_required`). No model, dataset or external inference service is called anywhere: verdicts come only from rules R1–R12 and the shields, with fixed severity weights.
 - **`x402 Work` HTTP 402 Gate (`api-agents/routes/firewall_api.py`):** When enabled via `X-Quai-Work-Gate: true`, `/v1/simulate` responds with `402 Payment Required` and a `PAYMENT-REQUIRED` header containing a difficulty target and nonce challenge. Clients verify workshares before simulation to shield the RPC node against DoS.
-- **`/v1/quai/status` Endpoint:** Returns JSON telemetry with `shardZone: "cyprus1"`, `chainId: 9`, `quaiRpc`, `hashferenceStatus: "CONNECTED"`, `workGateActive`, and dual-asset ledger status.
+- **`/v1/quai/status` Endpoint:** Returns JSON telemetry with `shardZone: "cyprus1"`, `chainId: 9`, `quaiRpc`, `workGateActive`, and dual-asset ledger status.
 
 ### G. `@vero/guard-sdk` Pelagus Integration
 - Automatically detects Pelagus wallet extension on `window.pelagus` via `detectQuaiProvider()`.

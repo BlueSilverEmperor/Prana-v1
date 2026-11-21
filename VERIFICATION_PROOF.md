@@ -115,7 +115,7 @@ Command: `$env:PYTHONPATH="api-agents"; python -m pytest api-agents/tests/ -v`
   - `test_firewall_api.py`: Live REST endpoints (`/v1/simulate`, `/v1/verify-intent`) (6/6 passed).
   - `test_forensics.py`: Ed25519 receipt generation & cryptographic signature verification (2/2 passed).
   - `test_mcp.py`: Model Context Protocol server `vero_simulate_and_verify` (2/2 passed).
-  - `test_quai_routes.py`: Hashference NL compilation, shard-prefix poisoning, status endpoints (6/6 passed).
+  - `test_quai_routes.py`: local NL compilation, shard-prefix poisoning, status endpoints (6/6 passed).
   - `test_work_gate.py`: `x402 Work` Proof-of-Work challenge handshake, double-spend replay defense, expiration (7/7 passed).
   - `test_vero_engine_adapter.py`: Fail-closed architecture, state diff checks (28/28 passed).
   - `test_webhooks.py`: HMAC-SHA256 signature calculation and local dispatch (2/2 passed).

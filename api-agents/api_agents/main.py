@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from api_agents.adapters.factory import engine_name
 from api_agents.routes.firewall_api import get_adapter, router as firewall_router
+from api_agents.routes.redteam_api import router as redteam_router
 
 app = FastAPI(
     title="Project Vero Firewall API",
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(firewall_router)
+app.include_router(redteam_router)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 web_dir = os.path.join(REPO_ROOT, "web")              # legacy demo HUD
