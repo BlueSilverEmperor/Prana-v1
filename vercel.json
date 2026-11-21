@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index.py" },
+    { "source": "/v1/:path*", "destination": "/api/index.py" },
+    { "source": "/verify/:path*", "destination": "/api/index.py" },
+    { "source": "/verify", "destination": "/api/index.py" },
+    { "source": "/docs", "destination": "/api/index.py" },
+    { "source": "/openapi.json", "destination": "/api/index.py" },
+    { "source": "/hud", "destination": "/web/index.html" },
+    { "source": "/vault", "destination": "/web/index.html" },
+    { "source": "/dashboard", "destination": "/web/index.html" },
+    { "source": "/cockpit", "destination": "/demo_cockpit.html" },
+    { "source": "/simulator", "destination": "/demo_cockpit.html" },
+    { "source": "/console.html", "destination": "/frontend/console.html" },
+    { "source": "/attack.html", "destination": "/frontend/attack.html" },
+    { "source": "/innovations.html", "destination": "/frontend/innovations.html" },
+    { "source": "/", "destination": "/frontend/index.html" },
+    { "source": "/:file((?!api/).*)", "destination": "/frontend/:file" }
+  ]
+}

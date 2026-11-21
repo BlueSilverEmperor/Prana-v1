@@ -39,3 +39,4 @@ htmlcov/
 # Foundry outputs for simulator integration fixtures
 tests/integration/contracts/out/
 tests/integration/contracts/cache/
+.vercel
