@@ -21,6 +21,7 @@
         <a href="console.html" data-tip="Defense stats"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span class="side__label">Defense stats</span></a>
         <a href="console.html#mechanisms" data-tip="Mechanisms"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 6v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/></svg><span class="side__label">Mechanisms</span></a>
         <a href="attack.html" aria-current="page" data-tip="Attack vs defense"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg><span class="side__label">Attack vs defense</span></a>
+        <a href="innovations.html" data-tip="Innovations"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span class="side__label">Innovations</span></a>
       </nav>
       <div class="side__foot">
         <a href="/docs" data-tip="API reference"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg><span class="side__label">API reference</span></a>
@@ -82,19 +83,6 @@
         <p class="fine" data-a-note>Each run uses a new seed and runs on the server at <code>/v1/redteam/mcmc</code>; the same seed reproduces the same run.</p>
       </section>
 
-      <section class="tile immune" aria-labelledby="immune-title" data-immune>
-        <header class="tile__head">
-          <div>
-            <p class="stage__tag immune__tag">Immune system</p>
-            <h2 id="immune-title">One vault is attacked, every vault is protected</h2>
-            <p class="tile__meta">When the rules block an attack, the address the attack relied on (a fake implementation, an unlimited spender, a backdoor module, a lookalike recipient) is reported. Once <span data-im-quorum>2</span> different vaults report the same address, it joins the threat registry and rule R12 blocks it for everyone. Token contracts, the vault itself and its declared contacts are never vaccinated.</p>
-          </div>
-          <button class="btn" type="button" data-im-run>Run the vaccination demo</button>
-        </header>
-        <ol class="immune__steps" data-im-steps><li class="immune__empty">Press the button to watch an attacker hit three vaults.</li></ol>
-        <p class="fine" data-im-note>Each run uses a new random attacker address and new vaults, sent to the live engine at <code>/v1/simulate</code>; the registry is read from <code>/v1/vaccines</code>.</p>
-      </section>
-
       <section class="tile how" aria-labelledby="how-title">
         <h2 id="how-title">How the search works</h2>
         <ol class="how__steps">
@@ -106,7 +94,7 @@
       </section>
     </main>
   </div>
-  <script src="attack.js?v=6"></script>
+  <script src="attack.js?v=7"></script>
   <script src="alive.js?v=2"></script>
 </body>
 </html>

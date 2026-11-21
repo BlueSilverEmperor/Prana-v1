@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vero Innovations</title>
+  <meta name="description" content="What is new in Vero, explained simply, each with a live proof from the engine.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vero.css?v=93">
+  <link rel="stylesheet" href="innovations.css?v=1">
+</head>
+<body>
+  <div class="app">
+    <aside class="side" aria-label="Main navigation" data-side>
+      <div class="side__top">
+        <a class="brand" href="/" data-tip="Vero home"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20.5 7.25v9.5L12 21.5 3.5 16.75v-9.5z"/><path d="M12 12 20.5 7.25M12 12v9.5M12 12 3.5 7.25"/></svg><span class="side__label">Vero</span></a>
+      </div>
+      <nav class="side__nav"><span class="side__hover" aria-hidden="true"></span><span class="side__pill" aria-hidden="true"></span>
+        <a href="console.html" data-tip="Defense stats"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span class="side__label">Defense stats</span></a>
+        <a href="console.html#mechanisms" data-tip="Mechanisms"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 6v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/></svg><span class="side__label">Mechanisms</span></a>
+        <a href="attack.html" data-tip="Attack vs defense"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg><span class="side__label">Attack vs defense</span></a>
+        <a href="innovations.html" aria-current="page" data-tip="Innovations"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg><span class="side__label">Innovations</span></a>
+      </nav>
+      <div class="side__foot">
+        <a href="/docs" data-tip="API reference"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg><span class="side__label">API reference</span></a>
+        <a href="https://github.com/BlueSilverEmperor/Prana-v1" rel="noopener" data-tip="Source"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="8" r="2.2"/><path d="M6 8.2v7.6M18 10.2c0 4-6 3.6-10.6 6.3"/></svg><span class="side__label">Source</span></a>
+      </div>
+      <span class="side__progress" aria-hidden="true"></span>
+    </aside>
+    <div class="island" data-island aria-hidden="true"><span class="island__tag" data-island-tag></span><span class="island__text" data-island-text></span><b data-island-risk></b></div>
+
+    <main class="main" id="innovations">
+      <header class="top">
+        <div>
+          <h1 class="top__title">Innovations</h1>
+          <p class="top__sub">Four things Vero does that a normal wallet check does not. Each one in plain words, with a live proof from the engine underneath.</p>
+        </div>
+        <nav class="jump" aria-label="Jump to an innovation">
+          <a href="#attacker">1 · Adaptive attacker</a><a href="#composition">2 · Hidden batches</a><a href="#immune">3 · Immune system</a><a href="#checksum">4 · Same words everywhere</a>
+        </nav>
+      </header>
+
+      <!-- 1 -->
+      <section class="tile inno" id="attacker" aria-labelledby="t1">
+        <div class="inno__head"><span class="inno__n">1</span><div><h2 id="t1">An attacker that learns, built in</h2><p class="inno__one">Vero attacks itself thousands of times so new tricks are found before a real attacker finds them.</p></div></div>
+        <div class="inno__body">
+          <div class="inno__col"><p class="inno__label">The problem</p><p>Security rules are usually tested only against attacks people already thought of. A new combination slips through.</p></div>
+          <div class="inno__col"><p class="inno__label">How Vero solves it</p>
+            <ol class="inno__steps"><li>A Markov chain Monte Carlo search starts from known attacks.</li><li>Each step changes one detail: amount, recipient, method, nesting, padding.</li><li>It keeps the changes that get closest to fooling the rules, and reports anything that gets through.</li></ol></div>
+          <div class="inno__col inno__proof"><p class="inno__label">See it</p>
+            <button class="btn" type="button" data-p1-run>Run a short attack</button>
+            <dl class="proof__stats" data-p1-stats><div><dt>Attacks tried</dt><dd data-p1="harmful">–</dd></div><div><dt>Got through</dt><dd data-p1="escapes">–</dd></div><div><dt>Safe ones passed</dt><dd data-p1="passed">–</dd></div></dl>
+            <a class="inno__more" href="attack.html">Watch the full battle →</a></div>
+        </div>
+        <p class="inno__code">In the code: <code>simulator/redteam/mcmc.py</code>, <code>POST /v1/redteam/mcmc</code></p>
+      </section>
+
+      <!-- 2 -->
+      <section class="tile inno" id="composition" aria-labelledby="t2">
+        <div class="inno__head"><span class="inno__n">2</span><div><h2 id="t2">Attacks hidden inside batches</h2><p class="inno__one">Splitting a drain into small pieces, or hiding it behind a real payment, does not fool Vero.</p></div></div>
+        <div class="inno__body">
+          <div class="inno__col"><p class="inno__label">The problem</p><p>Checks that look at one call at a time can be beaten by cutting a big theft into several small calls that each look fine.</p></div>
+          <div class="inno__col"><p class="inno__label">How Vero solves it</p>
+            <ol class="inno__steps"><li>The red team builds batches: split drains and decoy payments.</li><li>Vero adds up every outflow and every allowance per recipient across the whole batch.</li><li>The total is held to what the signer declared. The red team found a real gap here, and it is now closed.</li></ol></div>
+          <div class="inno__col inno__proof"><p class="inno__label">See it, live from the engine</p>
+            <ul class="cases" data-p2-cases><li class="cases__empty">Loading…</li></ul></div>
+        </div>
+        <p class="inno__code">In the code: rule R1 in <code>simulator/rules/twelve_rule_engine.py</code>, <code>GET /v1/innovations/composition</code></p>
+      </section>
+
+      <!-- 3 -->
+      <section class="tile inno" id="immune" aria-labelledby="t3">
+        <div class="inno__head"><span class="inno__n">3</span><div><h2 id="t3">An immune system shared by every vault</h2><p class="inno__one">When one vault blocks an attacker, every other vault becomes immune to that attacker.</p></div></div>
+        <div class="inno__body">
+          <div class="inno__col"><p class="inno__label">The problem</p><p>After an exchange is attacked, other teams wait days for a post-mortem before they protect themselves. The attacker moves on to the next target meanwhile.</p></div>
+          <div class="inno__col"><p class="inno__label">How Vero solves it</p>
+            <ol class="inno__steps"><li>A blocked attack reports the address it relied on (never a token contract, never the vault's own contacts).</li><li>When <b>2 different vaults</b> report the same address, it becomes a vaccine.</li><li>Rule R12 then blocks that address for every vault, even ones it never touched.</li></ol></div>
+        </div>
+
+        <div class="net" data-net>
+          <div class="net__vaults" data-net-vaults></div>
+          <div class="net__registry">
+            <p class="inno__label">Shared registry</p>
+            <p class="net__attacker">Attacker <code data-net-attacker>–</code></p>
+            <div class="net__meter"><i data-net-meter></i></div>
+            <p class="net__status" data-net-status>Not reported yet</p>
+          </div>
+        </div>
+        <div class="net__controls">
+          <button class="btn" type="button" data-net-next>Start the story</button>
+          <button class="btn-quiet" type="button" data-net-all>Play all steps</button>
+          <span class="net__progress" data-net-progress></span>
+        </div>
+        <ol class="story" data-net-story></ol>
+        <p class="inno__code">Runs through the real engine and vaccine logic in a registry made for this demo only, so it never changes the shared one. In the code: <code>api_agents/vaccination.py</code>, <code>POST /v1/innovations/immune-demo</code></p>
+      </section>
+
+      <!-- 4 -->
+      <section class="tile inno" id="checksum" aria-labelledby="t4">
+        <div class="inno__head"><span class="inno__n">4</span><div><h2 id="t4">The same six words on every device</h2><p class="inno__one">Your laptop, your phone and the contract compute the same six words for a transaction, so a hacked screen cannot hide a different one.</p></div></div>
+        <div class="inno__body">
+          <div class="inno__col"><p class="inno__label">The problem</p><p>If the screen you sign on is compromised, everything it shows can be faked. You need a second, independent check that is quick to compare.</p></div>
+          <div class="inno__col"><p class="inno__label">How Vero solves it</p>
+            <ol class="inno__steps"><li>The chain, vault, nonce, transaction hash and intent hash are hashed together.</li><li>The hash is cut into six 11-bit pieces, each one a word from the standard 2,048-word list.</li><li>The API, the guard SDK and the contract use the exact same recipe, pinned by the same test in Solidity and Python.</li></ol></div>
+          <div class="inno__col inno__proof"><p class="inno__label">The shared test answer</p>
+            <p class="words"><span>train</span><span>sand</span><span>used</span><span>essay</span><span>donkey</span><span>disease</span></p>
+            <p class="inno__small">chain 1 · vault 0x5bd3…786c · nonce 42 · tx 0xaaaa… · intent 0xbbbb…</p></div>
+        </div>
+        <p class="inno__code">In the code: <code>VeroGuard.computeSixWordChecksumIndices</code>, <code>api_agents/utils/four_word_checksum.py</code>. Six words give about 2<sup>66</sup> work to forge a match for a given transaction.</p>
+      </section>
+    </main>
+  </div>
+  <script src="innovations.js?v=2"></script>
+  <script src="alive.js?v=2"></script>
+</body>
+</html>

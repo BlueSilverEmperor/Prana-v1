@@ -42,7 +42,7 @@ from shared.api_schemas import SimulationRequest, SimulationResult, StateDiffSum
 from simulator.constants import UNLIMITED_THRESHOLD  # noqa: E402
 from simulator.context import EngineContext  # noqa: E402
 from simulator.hexutil import normalize_address  # noqa: E402
-from api_agents.vaccination import REGISTRY as VACCINES  # noqa: E402
+from api_agents.vaccination import REGISTRY as VACCINES, VaccineRegistry  # noqa: E402
 from simulator.engine import analyze_offline, simulate  # noqa: E402
 from simulator.renderer.plain_english_renderer import format_amount  # noqa: E402
 
@@ -164,15 +164,16 @@ class VeroEngineAdapter:
     """SimulatorProtocol + RuleEngineProtocol backed by the Vero engine."""
 
     def __init__(self, ctx: Optional[EngineContext] = None, rpc_url: Optional[str] = None,
-                 cache_size: int = DEFAULT_CACHE_SIZE) -> None:
+                 cache_size: int = DEFAULT_CACHE_SIZE, vaccines: Optional[VaccineRegistry] = None) -> None:
         self._ctx = ctx or EngineContext()
+        self._vaccines = vaccines if vaccines is not None else VACCINES  # injectable so demos stay isolated
         self._rpc_url = rpc_url
         self._cache: OrderedDict[str, tuple[SimulationResult, bool]] = OrderedDict()
         self._cache_size = cache_size
 
     def _context_for(self, req: SimulateRequest) -> EngineContext:
         """The server context, the active vaccines, and this request's own address book and history."""
-        vaccines = VACCINES.active()
+        vaccines = self._vaccines.active()
         if not req.contacts and not req.recipient_history and not vaccines:
             return self._ctx
         return replace(
@@ -206,7 +207,7 @@ class VeroEngineAdapter:
         result, fork_failed = await self._run(request, ctx)
         self._remember(req.model_dump_json(), (result, fork_failed))
         declared = req.declared_intent.allowed_recipients if req.declared_intent else []
-        VACCINES.observe(req.safe_address, result.alerts, VACCINES.protected(req.safe_address, ctx, declared))
+        self._vaccines.observe(req.safe_address, result.alerts, self._vaccines.protected(req.safe_address, ctx, declared))
         return RawSimulationResult(
             success=result.success, gas_used=int(result.metrics.gasUsed),
             state_diffs=to_state_diffs(result.stateDiff, request.safeAddress, ctx),
