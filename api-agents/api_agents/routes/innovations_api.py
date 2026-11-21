@@ -1,22 +1,24 @@
 """Live proofs for the Innovations page.
 
+- hidden-attacks: an adaptive attacker hides theft inside MultiSend batches with values drawn per run.
 - immune-demo: replays one attacker against four vaults through the real engine and the real vaccine logic,
   but in a registry created for this request only, so the demo never touches the shared registry.
-- composition: the batch-composition attacks the MCMC red team generates, judged by the real engine,
-  including the split-allowance attack it found (now blocked) and a legitimate split payment (still passes).
 """
 
-from typing import Callable, List
+from typing import List, Optional
 
 from eth_abi import encode
 from eth_utils import keccak
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api_agents.adapters.vero_engine_adapter import VeroEngineAdapter
+from api_agents.adapters.vero_engine_adapter import AMOY_CHAIN_ID, VeroEngineAdapter
+from api_agents.hidden_attacker import (MAX_TRIES, MULTISEND, Attempt, HiddenAttacker, Scene, encode_multisend,
+                                        run, summarize)
+from api_agents.routes.chain_api import amoy_status_sync
 from api_agents.models.schemas import SimulateRequest
 from api_agents.vaccination import VaccineRegistry
-from simulator.redteam import mcmc
 
 router = APIRouter(prefix="/v1/innovations", tags=["innovations"])
 
@@ -26,6 +28,7 @@ VAULTS = {"Exchange A": "0x" + "a1" * 20, "Treasury B": "0x" + "b2" * 20,
           "DAO C": "0x" + "c3" * 20, "Fund D": "0x" + "d4" * 20}
 DEMO_QUORUM = 2
 REASON_MAX = 160
+OFFLINE_VAULT = "0x" + "5a" * 20
 
 
 def _cd(signature: str, types: list, args: list) -> str:
@@ -87,32 +90,42 @@ async def immune_demo() -> dict:
     return await _run_story()
 
 
-COMPOSITION_CASES = [
-    ("split-allowance", "increaseAllowance of 200 USDT to the declared spender, split into 4 calls of 50",
-     mcmc.Variant("increaseAllowance", mcmc.HOT_WALLET, mcmc.DECLARED_CAP * 2, split=4),
-     "Found by the red team: each piece is under the 100 USDT ceiling, together they are double. Now summed and blocked."),
-    ("decoy-over-cap", "100 USDT to the declared wallet, hidden behind a legitimate 10 USDT payment",
-     mcmc.Variant("transfer", mcmc.HOT_WALLET, mcmc.DECLARED_CAP, decoy=1),
-     "The decoy looks normal, but the batch moves 110 USDT against a 100 USDT ceiling."),
-    ("split-drain-to-attacker", "100 USDT to the attacker, split into 3 calls behind a decoy payment",
-     mcmc.Variant("transfer", mcmc.ATTACKER, mcmc.DECLARED_CAP, split=3, decoy=1),
-     "Splitting does not hide an undeclared recipient."),
-    ("split-payment-within-cap", "50 USDT to the declared wallet in 2 calls, plus the 10 USDT decoy",
-     mcmc.Variant("transfer", mcmc.HOT_WALLET, mcmc.DECLARED_CAP // 2, split=2, decoy=1),
-     "Legitimate: 60 USDT total, under the ceiling. It must pass, and it does."),
-]
+# ------------------------------------------------------------------ hidden-batch attacker --
+class HiddenAttackRequest(BaseModel):
+    seed: Optional[int] = Field(default=None, ge=0, le=2**32 - 1)
+    tries: int = Field(default=4, ge=1, le=MAX_TRIES)
 
 
-def _composition() -> dict:
-    cases = []
-    for case_id, title, variant, meaning in COMPOSITION_CASES:
-        verdict = mcmc.engine_verdict(variant)
-        cases.append({"id": case_id, "title": title, "meaning": meaning, "harmful": mcmc.harm(variant) > 0,
-                      "decision": "BLOCK" if verdict.blocked else "ALLOW", "rules": list(verdict.rules),
-                      "calls": len(mcmc.calls(variant)), "ms": verdict.ms})
-    return {"declared_cap_usdt": mcmc.DECLARED_CAP / 10**6, "cases": cases}
+OFFLINE_CHAIN_ID = 1   # without a live fork the batch is judged from calldata alone
 
 
-@router.get("/composition")
-async def composition() -> dict:
-    return await run_in_threadpool(_composition)
+def _batch_request(scene: Scene, attempt: Attempt) -> SimulateRequest:
+    return SimulateRequest(
+        chain_id=AMOY_CHAIN_ID if scene.live else OFFLINE_CHAIN_ID, safe_address=scene.vault, to=MULTISEND, value="0",
+        data=encode_multisend(attempt.calls), operation=1, contacts=[scene.vendor],
+        declared_intent={"allowed_recipients": [scene.vendor], "allowed_tokens": ["ETH"],
+                         "max_outflow_wei": str(scene.cap_wei)})
+
+
+@router.post("/hidden-attacks")
+async def hidden_attacks(req: HiddenAttackRequest) -> dict:
+    """Run the adaptive hidden-batch attacker against live Amoy accounts (or synthetic ones when offline)."""
+    status = await run_in_threadpool(amoy_status_sync)
+    live = bool(status.get("available"))
+    vault = status["vault"]["address"] if live else OFFLINE_VAULT
+    balance = int(status["vault"]["balance_wei"]) if live else 0
+    attacker = HiddenAttacker(req.seed)
+    scene = attacker.draw_scene(vault, status.get("accounts", []) if live else [], balance, live)
+    adapter = VeroEngineAdapter(vaccines=VaccineRegistry(quorum=DEMO_QUORUM))   # never vaccinates the real registry
+
+    async def judge(s: Scene, attempt: Attempt):
+        sim_req = _batch_request(s, attempt)
+        verdict = adapter.evaluate(await adapter.simulate_tx(sim_req), sim_req)
+        rules = sorted({w.split("]")[0].lstrip("[") for w in verdict.human_warnings if w.startswith("[")})
+        reason = verdict.human_warnings[0][:REASON_MAX] if verdict.human_warnings else ""
+        return verdict.decision.value, verdict.risk_score, rules, reason
+
+    records = await run(attacker, scene, judge, req.tries)
+    return {"seed": attacker.seed, "live": live, "block": status.get("block"), "chain_id": AMOY_CHAIN_ID if live else OFFLINE_CHAIN_ID,
+            "vault": scene.vault, "vendor": scene.vendor, "strangers": list(scene.strangers),
+            "cap_wei": str(scene.cap_wei), "attempts": records, "summary": summarize(records)}

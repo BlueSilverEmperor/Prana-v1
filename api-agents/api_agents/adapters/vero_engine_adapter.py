@@ -13,6 +13,7 @@ so a dead node degrades fidelity but never silences a verdict.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from collections import OrderedDict
 from pathlib import Path
@@ -49,6 +50,9 @@ from simulator.renderer.plain_english_renderer import format_amount  # noqa: E40
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_SIZE = 256
+AMOY_CHAIN_ID = 80002
+# chains that simulate on their own fork: chain id -> env var holding that fork's RPC URL
+CHAIN_FORK_ENV = {AMOY_CHAIN_ID: "VERO_AMOY_RPC"}
 FORK_UNAVAILABLE = "FORK_UNAVAILABLE"
 FLAG_NAMES = {
     "R1": "TOKEN_APPROVAL",
@@ -183,13 +187,19 @@ class VeroEngineAdapter:
             recipient_history=self._ctx.recipient_history | frozenset(normalize_address(a) for a in req.recipient_history),
         )
 
+    def _rpc_for(self, chain_id: int) -> Optional[str]:
+        """A chain with its own fork (for example Polygon Amoy) uses only that fork, never another chain's."""
+        env = CHAIN_FORK_ENV.get(chain_id)
+        return os.getenv(env) if env else self._rpc_url
+
     async def _run(self, request: SimulationRequest, ctx: EngineContext) -> tuple[SimulationResult, bool]:
-        if not self._rpc_url:
+        rpc_url = self._rpc_for(request.chainId)
+        if not rpc_url:
             return analyze_offline(request, ctx), False
         from simulator.tracer.anvil_fork_simulator import AnvilForkSimulator
 
         try:
-            async with AnvilForkSimulator(self._rpc_url) as fork:
+            async with AnvilForkSimulator(rpc_url) as fork:
                 return await simulate(request, ctx, fork), False
         except Exception as exc:  # noqa: BLE001 - any node failure degrades to static, flagged
             logger.exception("fork simulation failed (%s); using static analysis", exc)

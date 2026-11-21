@@ -17,6 +17,8 @@ from api_agents.routes.firewall_api import get_adapter, router as firewall_route
 from api_agents.routes.redteam_api import router as redteam_router
 from api_agents.routes.vaccines_api import router as vaccines_router
 from api_agents.routes.innovations_api import router as innovations_router
+from api_agents.routes.chain_api import router as chain_router
+from api_agents.routes.six_words_api import phone_router as six_words_phone_router, router as six_words_router
 
 app = FastAPI(
     title="Project Vero Firewall API",
@@ -36,6 +38,9 @@ app.include_router(firewall_router)
 app.include_router(redteam_router)
 app.include_router(vaccines_router)
 app.include_router(innovations_router)
+app.include_router(chain_router)
+app.include_router(six_words_router)
+app.include_router(six_words_phone_router)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 web_dir = os.path.join(REPO_ROOT, "web")              # legacy demo HUD

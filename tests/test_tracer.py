@@ -6,7 +6,7 @@ from simulator.constants import ERC1967_IMPLEMENTATION_SLOT
 from simulator.context import EngineContext
 from simulator.engine import simulate
 from simulator.hexutil import topic_of
-from simulator.tracer.anvil_fork_simulator import AnvilForkSimulator, SimulationRPCError
+from simulator.tracer.anvil_fork_simulator import AnvilForkSimulator, SimulationRPCError, _TxTrace, _merge_states
 from simulator.tracer.trace_diff import build_state_diff
 from tests.helpers import ALICE, EVIL, SAFE, USDT, calldata
 
@@ -110,6 +110,17 @@ class TestAnvilForkSimulator:
         assert methods[0] == "evm_snapshot" and methods[-1] == "evm_revert"
         assert trace.success is False
 
+    async def test_batch_traces_only_after_the_tx_is_mined(self):
+        # Anvil can answer eth_sendTransaction before the block exists; tracing then reaches the upstream RPC.
+        receipts = iter([None, None, {"status": "0x1"}])
+        provider = FakeProvider({"eth_getTransactionReceipt": lambda p: {"result": next(receipts, {"status": "0x1"})}})
+        sim, _ = make_sim(provider)
+        trace = await sim.simulate_transaction_batch(SAFE, [tx(), tx(to=ALICE)])
+        methods = [m for m, _ in provider.calls]
+        first_trace = methods.index("debug_traceTransaction")
+        assert methods[:first_trace].count("eth_getTransactionReceipt") == 3
+        assert trace.success is True
+
     async def test_reverted_top_frame_marks_failure(self):
         failing = {**CALLTRACE, "error": "execution reverted", "revertReason": "GS013"}
         provider = FakeProvider({"debug_traceCall": lambda p: {"result": PRESTATE if p[-1]["tracer"] ==
@@ -123,6 +134,30 @@ class TestAnvilForkSimulator:
         snap = await sim.inspect_proxy(SAFE)
         assert snap.erc1967_implementation == EVIL
         assert snap.codehash.startswith("0x")
+
+
+class TestMergeStates:
+    """A batch's net state change: each value's pre comes from before the batch, its post from the end."""
+
+    @staticmethod
+    def trace(pre, post):
+        return _TxTrace({"pre": pre, "post": post}, {}, ok=True, error=None, latency_ms=0)
+
+    def test_fresh_recipient_paid_three_times_starts_from_zero(self):
+        # diffMode omits an account that did not exist, so only the 2nd and 3rd traces carry a pre balance
+        traces = [self.trace({}, {EVIL: {"balance": "0x5"}}),
+                  self.trace({EVIL: {"balance": "0x5"}}, {EVIL: {"balance": "0xa"}}),
+                  self.trace({EVIL: {"balance": "0xa"}}, {EVIL: {"balance": "0xf"}})]
+        pre, post = _merge_states(traces)
+        assert pre.get(EVIL.lower(), {}).get("balance", "0x0") == "0x0"
+        assert post[EVIL.lower()]["balance"] == "0xf"
+
+    def test_slot_written_earlier_keeps_its_original_pre(self):
+        traces = [self.trace({SAFE: {"storage": {"0x1": "0x0"}}}, {SAFE: {"storage": {"0x1": "0x7"}}}),
+                  self.trace({SAFE: {"storage": {"0x1": "0x7", "0x2": "0x3"}}}, {SAFE: {"storage": {"0x1": "0x8", "0x2": "0x4"}}})]
+        pre, post = _merge_states(traces)
+        assert pre[SAFE.lower()]["storage"] == {"0x1": "0x0", "0x2": "0x3"}
+        assert post[SAFE.lower()]["storage"] == {"0x1": "0x8", "0x2": "0x4"}
 
 
 class TestTraceDiff:

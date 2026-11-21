@@ -22,11 +22,3 @@ def test_immune_demo_is_repeatable():
     first = client.post("/v1/innovations/immune-demo").json()
     second = client.post("/v1/innovations/immune-demo").json()
     assert [s["decision"] for s in first["steps"]] == [s["decision"] for s in second["steps"]]
-
-
-def test_composition_cases_show_the_found_and_fixed_attack():
-    cases = {c["id"]: c for c in client.get("/v1/innovations/composition").json()["cases"]}
-    split = cases["split-allowance"]
-    assert split["harmful"] and split["decision"] == "BLOCK" and "R1" in split["rules"]
-    assert cases["split-payment-within-cap"]["decision"] == "ALLOW"
-    assert cases["decoy-over-cap"]["decision"] == "BLOCK"

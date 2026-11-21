@@ -141,3 +141,22 @@ forge test -vvv
   node deploy_quai.mjs --dry-run
   ```
   Off a local Anvil chain (31337) both Forge scripts require `PRIVATE_KEY`; there is no default key.
+
+---
+
+## 7. Live Polygon Amoy Simulation
+The Innovations page's batch builder runs on live Polygon Amoy (chain 80002) state through a local Anvil fork.
+
+```bash
+anvil --fork-url https://polygon-amoy-bor-rpc.publicnode.com --chain-id 80002 --port 8546
+cd api-agents && VERO_AMOY_RPC=http://127.0.0.1:8546 ../.venv/bin/python -m uvicorn api_agents.main:app --port 8000
+```
+
+- Requests with `chain_id` 80002 are simulated on the fork named by `VERO_AMOY_RPC`. Other chains use `VERO_ANVIL_RPC` or static analysis.
+- `GET /v1/chain/amoy` reports the fork block, whether canonical MultiSend 1.3.0 is deployed, and a funded account taken from the latest block's real transactions. The builder uses that account as the vault.
+- If the fork is down, Amoy requests fall back to calldata analysis and carry the `FORK_UNAVAILABLE` flag, so the verdict is never silently weakened.
+- The fork never broadcasts. Every batch runs inside `evm_snapshot` / `evm_revert`. A fork older than 60 s is moved to the newest Amoy block (`anvil_reset`), because public RPCs keep only recent state.
+- `POST /v1/innovations/hidden-attacks` runs an adaptive attacker (`api_agents/hidden_attacker.py`). Each run draws the vendor, strangers, cap and every amount from live accounts and a seed. Four strategies (salami slicing, skim behind a real payment, lookalike recipient, dust trail) get sneakier after each block. Honest batches run as controls. The response counts escapes and false positives; pass `seed` to replay a run.
+
+## 8. Six-Word Verification QR
+`POST /v1/innovations/six-words` returns the six BIP-39 words for a transaction and a QR code (SVG, drawn with reportlab). The QR holds a link to `GET /verify/six` that carries the words and every input they come from: chain, vault, nonce, tx hash and intent hash. The phone page recomputes the words from those inputs and shows MATCH, or MISMATCH with "Do not sign". Set `VERO_PUBLIC_URL` to a host the phone can reach (for example `http://<laptop-lan-ip>:8000`); by default the link uses the API's own address.

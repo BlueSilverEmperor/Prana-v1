@@ -44,6 +44,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_SECONDS = 10.0
 PRESTATE = {"tracer": "prestateTracer", "tracerConfig": {"diffMode": True}}
 CALLTRACE = {"tracer": "callTracer", "tracerConfig": {"withLog": True}}
+RECEIPT_POLL_SECONDS = 0.05
+RECEIPT_MAX_POLLS = 100   # 5 s: a forked block that needs remote state can take a moment to mine
 
 
 class SimulationRPCError(RuntimeError):
@@ -109,17 +111,23 @@ def _walk_frames(frame: Mapping[str, Any], frames: list, logs: list) -> None:
 
 
 def _merge_states(traces: Sequence[_TxTrace]) -> tuple[dict, dict]:
-    """First-seen pre values and last-written post values across a batch."""
+    """Net change across a batch: each value's pre from before the batch, its post from the last write.
+
+    diffMode leaves out an account that did not exist yet, so a later trace's pre can hold a value an
+    earlier trace wrote. Such a value is skipped: its true pre is the absent (zero) one.
+    """
     pre: dict[str, dict] = {}
     post: dict[str, dict] = {}
     for t in traces:
         for addr, acct in t.prestate.get("pre", {}).items():
+            written = post.get(addr.lower(), {})
             target = pre.setdefault(addr.lower(), {})
             for key, value in acct.items():
                 if key == "storage":
-                    target.setdefault("storage", {}).update(
-                        {k: v for k, v in value.items() if k not in target.get("storage", {})})
-                else:
+                    slots = target.setdefault("storage", {})
+                    slots.update({k: v for k, v in value.items()
+                                  if k not in slots and k not in written.get("storage", {})})
+                elif key not in written:
                     target.setdefault(key, value)
         for addr, acct in t.prestate.get("post", {}).items():
             target = post.setdefault(addr.lower(), {})
@@ -204,6 +212,15 @@ class AnvilForkSimulator:
         return _TxTrace(prestate or {}, calltrace or {}, ok=not calltrace.get("error"), error=error,
                         latency_ms=(time.perf_counter() - started) * 1000)
 
+    async def _mined_receipt(self, tx_hash: str) -> dict:
+        """Wait until Anvil has mined the tx; tracing an unknown hash is forwarded to the forked RPC and fails."""
+        for _ in range(RECEIPT_MAX_POLLS):
+            receipt = await self.rpc("eth_getTransactionReceipt", [tx_hash])
+            if receipt:
+                return receipt
+            await asyncio.sleep(RECEIPT_POLL_SECONDS)
+        raise SimulationRPCError(f"transaction {tx_hash} was not mined on the fork")
+
     async def _send_one(self, safe: str, tx: TransactionTuple) -> _TxTrace:
         started = time.perf_counter()
         original_code = None
@@ -218,8 +235,8 @@ class AnvilForkSimulator:
         finally:
             if original_code is not None:
                 await self.rpc("anvil_setCode", [safe, original_code])
-        receipt, prestate, calltrace = await asyncio.gather(
-            self.rpc("eth_getTransactionReceipt", [tx_hash]),
+        receipt = await self._mined_receipt(tx_hash)
+        prestate, calltrace = await asyncio.gather(
             self.rpc("debug_traceTransaction", [tx_hash, PRESTATE]),
             self.rpc("debug_traceTransaction", [tx_hash, CALLTRACE]),
         )

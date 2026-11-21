@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="vero.css?v=93">
-  <link rel="stylesheet" href="innovations.css?v=1">
+  <link rel="stylesheet" href="innovations.css?v=6">
 </head>
 <body>
   <div class="app">
@@ -63,11 +63,35 @@
         <div class="inno__body">
           <div class="inno__col"><p class="inno__label">The problem</p><p>Checks that look at one call at a time can be beaten by cutting a big theft into several small calls that each look fine.</p></div>
           <div class="inno__col"><p class="inno__label">How Vero solves it</p>
-            <ol class="inno__steps"><li>The red team builds batches: split drains and decoy payments.</li><li>Vero adds up every outflow and every allowance per recipient across the whole batch.</li><li>The total is held to what the signer declared. The red team found a real gap here, and it is now closed.</li></ol></div>
-          <div class="inno__col inno__proof"><p class="inno__label">See it, live from the engine</p>
-            <ul class="cases" data-p2-cases><li class="cases__empty">Loading…</li></ul></div>
+            <ol class="inno__steps"><li>An adaptive attacker builds batches from live accounts: slices just over the cap, skims behind real payments, lookalikes, dust trails. After every block it tries something sneakier.</li><li>Vero adds up every outflow and every allowance per recipient across the whole batch.</li><li>The total is held to what the signer declared. The red team found a real gap here, and it is now closed.</li></ol></div>
         </div>
-        <p class="inno__code">In the code: rule R1 in <code>simulator/rules/twelve_rule_engine.py</code>, <code>GET /v1/innovations/composition</code></p>
+
+        <div class="batch" data-batch>
+          <p class="batch__chain" data-b-chain data-live="pending"><span class="batch__dot" aria-hidden="true"></span><span data-b-chain-text>Connecting to Polygon Amoy…</span></p>
+          <div class="batch__intent">
+            <p class="inno__label">What the signer declared</p>
+            <p>Pay <b>Vendor</b> <code data-b-vendor>drawn per run</code> at most
+              <input class="batch__cap" type="number" min="0" step="any" value="1" data-b-cap aria-label="Declared POL cap"> POL. Nothing else.</p>
+          </div>
+          <div class="hunt">
+            <div class="hunt__bar">
+              <button type="button" class="btn" data-h-run>Run the hidden attacker</button>
+              <span class="hunt__summary" data-h-summary aria-live="polite">Nothing is preset. Each run draws a real vendor, strangers, a cap and every amount from live Amoy accounts, and the attacker gets sneakier after each block.</span>
+            </div>
+            <ol class="hunt__feed" data-h-feed></ol>
+          </div>
+          <details class="batch__editor" data-b-editor hidden>
+            <summary>Edit any attempt and check it yourself</summary>
+            <ol class="batch__calls" data-b-calls></ol>
+            <div class="batch__actions">
+              <button type="button" class="btn-quiet" data-b-add>+ Add a transfer</button>
+              <button type="button" class="btn" data-b-run>Check this batch live</button>
+              <span class="batch__totals" data-b-totals></span>
+            </div>
+            <output class="batch__verdict" data-b-verdict aria-live="polite"></output>
+          </details>
+        </div>
+        <p class="inno__code">The batch runs on Polygon Amoy (chain 80002): an Anvil fork of the live chain, from a real funded account taken from the latest block. The page encodes a real Safe MultiSend transaction (<code>multiSend(bytes)</code> on the canonical MultiSend 1.3.0 contract, called by DELEGATECALL) and sends it to <code>POST /v1/simulate</code>. Batch totals are enforced by rules R9 and R10, allowances by R1, in <code>simulator/rules/twelve_rule_engine.py</code>.</p>
       </section>
 
       <!-- 3 -->
@@ -105,14 +129,23 @@
           <div class="inno__col"><p class="inno__label">How Vero solves it</p>
             <ol class="inno__steps"><li>The chain, vault, nonce, transaction hash and intent hash are hashed together.</li><li>The hash is cut into six 11-bit pieces, each one a word from the standard 2,048-word list.</li><li>The API, the guard SDK and the contract use the exact same recipe, pinned by the same test in Solidity and Python.</li></ol></div>
           <div class="inno__col inno__proof"><p class="inno__label">The shared test answer</p>
-            <p class="words"><span>train</span><span>sand</span><span>used</span><span>essay</span><span>donkey</span><span>disease</span></p>
-            <p class="inno__small">chain 1 · vault 0x5bd3…786c · nonce 42 · tx 0xaaaa… · intent 0xbbbb…</p></div>
+            <p class="words" data-w-words><span>train</span><span>sand</span><span>used</span><span>essay</span><span>donkey</span><span>disease</span></p>
+            <p class="inno__small">chain 1 · vault 0x5bd3…786c · nonce 42 · tx 0xaaaa… · intent 0xbbbb…</p>
+            <figure class="qr">
+              <div class="qr__code" data-w-qr role="img" aria-label="Verification QR code"></div>
+              <figcaption>Scan with your phone. The code carries these six words and the transaction they belong to; the page it opens recomputes them and says MATCH or MISMATCH.</figcaption>
+            </figure>
+            <div class="qr__actions">
+              <a class="btn-quiet" data-w-open target="_blank" rel="noopener" hidden>Open the check</a>
+              <a class="btn-quiet" data-w-tamper target="_blank" rel="noopener" hidden>Try a tampered code</a>
+            </div>
+          </div>
         </div>
-        <p class="inno__code">In the code: <code>VeroGuard.computeSixWordChecksumIndices</code>, <code>api_agents/utils/four_word_checksum.py</code>. Six words give about 2<sup>66</sup> work to forge a match for a given transaction.</p>
+        <p class="inno__code">In the code: <code>VeroGuard.computeSixWordChecksumIndices</code>, <code>api_agents/utils/four_word_checksum.py</code>. Six words give about 2<sup>66</sup> work to forge a match for a given transaction. The QR comes from <code>POST /v1/innovations/six-words</code>; the phone page is <code>GET /verify/six</code>.</p>
       </section>
     </main>
   </div>
-  <script src="innovations.js?v=2"></script>
+  <script src="innovations.js?v=10"></script>
   <script src="alive.js?v=2"></script>
 </body>
 </html>
