@@ -44,7 +44,6 @@
   // The overview is a fresh red/green MCMC run, not a dataset: generated attacks and safe transactions,
   // judged by rules R1-R12. A fixed seed keeps the overview stable between loads; the attack page reseeds.
   const OVERVIEW_RUN = { steps: 300, chains: 4, seed: 7, mode: "both" };
-  const TABLE_MAX = 120;
   const METHOD_LABELS = { approve: "approve", increaseAllowance: "increaseAllowance", transfer: "transfer", transferFrom: "transferFrom",
     ethSend: "ETH send", upgradeTo: "logic swap", addOwnerWithThreshold: "owner takeover", enableModule: "module", setGuard: "guard removal" };
 
@@ -136,25 +135,7 @@
     }));
   }
 
-  let tableFilter = "all", runData = null;
-  function renderTable() {
-    const rows = runData.trace.filter((t) => tableFilter === "all" || (tableFilter === "harmful") === t.harmful).slice(0, TABLE_MAX);
-    $("[data-table]").replaceChildren(...rows.map((t, i) => {
-      const tr = el("tr");
-      const fired = el("td");
-      (t.rules.length ? t.rules : ["none"]).forEach((r) => fired.append(el("code", null, r)));
-      const verdict = t.blocked ? "BLOCK" : "ALLOW";
-      const vtd = el("td"); vtd.append(el("span", `pill pill--${verdict}`, verdict === "BLOCK" ? "Blocked" : "Allowed"));
-      const side = el("td"); side.append(el("span", `pill pill--${t.harmful ? "malicious" : "benign"}`, t.harmful ? "attack" : "safe"));
-      tr.append(el("td", null, String(i + 1)), side, el("td", "tx-desc", t.attempt), fired, vtd, el("td", "num", `${t.ms.toFixed(2)} ms`));
-      return tr;
-    }));
-  }
-  $$("[data-filter]").forEach((b) => b.addEventListener("click", () => {
-    tableFilter = b.dataset.filter;
-    $$("[data-filter]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    if (runData) renderTable();
-  }));
+  let runData = null;
 
   /* -------------------------------------------- entrances trigger the charts -- */
   function reveal(tile) {
@@ -216,7 +197,7 @@
   /* ------------------------------------------------------------------ boot -- */
   loadRun().then((r) => {
     runData = r;
-    renderStats(r); renderDuel(r); renderMechanisms(r); renderTable();
+    renderStats(r); renderDuel(r); renderMechanisms(r);
   }).catch((err) => {
     $("[data-mc-sub]").textContent = `The live MCMC run could not load (${err.message}). Start the API and reload.`;
   }).finally(observeTiles);
