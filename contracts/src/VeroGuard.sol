@@ -14,6 +14,7 @@ interface IGuardedMultisig {
     function threshold() external view returns (uint256);
     function guard() external view returns (address);
     function masterCopy() external view returns (address);
+    function governanceTimelock() external view returns (address);
     function sweepAsset(address token, address recipient) external;
 }
 
@@ -50,6 +51,7 @@ contract VeroGuard is EIP712 {
         bytes32 ownersHash;
         uint256 threshold;
         address guard;
+        address governanceTimelock;
     }
 
     bytes32 public constant INTENT_POLICY_TYPEHASH = keccak256(
@@ -91,6 +93,8 @@ contract VeroGuard is EIP712 {
     error ModuleFirewallBlocked(bytes4 selector, address caller);
     error EIP7702DelegationBlocked();
     error GuardPaused();
+    error TokenBalanceUnreadable(address token);
+    error PolicyArrayMismatch();
     error DeadMansSwitchActive(address vault);
     error DailySpendCapExceeded(uint256 cap, uint256 requested);
     error UnauthorizedSigner(address signer);
@@ -157,11 +161,15 @@ contract VeroGuard is EIP712 {
 
     /**
      * @notice Feature #27: Emergency Panic Freeze.
-     * Any single verified multisig owner can freeze the guard immediately.
+     * Any single verified owner of `vault` can freeze the guard immediately. While a pause is in force a
+     * second call changes nothing, so the 48h auto-decay cannot be extended by re-pausing.
      */
-    function emergencyPause() external {
-        paused = true;
-        pausedAt = block.timestamp;
+    function emergencyPause(address vault) external {
+        require(IGuardedMultisig(vault).isOwner(msg.sender), "Not a vault owner");
+        if (!isPaused()) {
+            paused = true;
+            pausedAt = block.timestamp;
+        }
         emit EmergencyPaused(msg.sender);
     }
 
@@ -219,18 +227,18 @@ contract VeroGuard is EIP712 {
      * Prevents birthday collision attacks on the out-of-band verification checksum.
      */
     function computeSixWordChecksumIndices(
+        uint256 chainId,
         address vault,
         uint256 nonce,
-        bytes32 safeTxHash,
-        bytes32 policyHash
+        bytes32 rawTxHash,
+        bytes32 intentHash
     ) external pure returns (uint16[6] memory indices) {
-        bytes32 digest = keccak256(abi.encode(vault, nonce, safeTxHash, policyHash));
-        indices[0] = uint16(uint256(digest) & 0x7FF);
-        indices[1] = uint16((uint256(digest) >> 11) & 0x7FF);
-        indices[2] = uint16((uint256(digest) >> 22) & 0x7FF);
-        indices[3] = uint16((uint256(digest) >> 33) & 0x7FF);
-        indices[4] = uint16((uint256(digest) >> 44) & 0x7FF);
-        indices[5] = uint16((uint256(digest) >> 55) & 0x7FF);
+        // keccak256(chainId || vault || nonce || rawTxHash || intentHash), 11-bit words from the high end:
+        // identical to api_agents/utils/four_word_checksum.py and the guard SDK, so every device shows the same words.
+        uint256 digest = uint256(keccak256(abi.encodePacked(chainId, vault, nonce, rawTxHash, intentHash)));
+        for (uint256 i = 0; i < 6; i++) {
+            indices[i] = uint16((digest >> (256 - 11 * (i + 1))) & 0x7FF);
+        }
     }
 
     /**
@@ -273,6 +281,7 @@ contract VeroGuard is EIP712 {
      * @notice Feature #37: Dead-Man's Switch consecutive revert tracking.
      */
     function recordFailure(address vault) external {
+        require(msg.sender == vault, "Only the vault records its failures");
         if (block.timestamp > lastFailureTime[vault] + DEAD_MANS_WINDOW) {
             consecutiveReverts[vault] = 1;
         } else {
@@ -384,6 +393,7 @@ contract VeroGuard is EIP712 {
     ) public view virtual {
         if (isPaused()) revert GuardPaused();
         if (deadMansSwitchActive[policy.vault]) revert DeadMansSwitchActive(policy.vault);
+        if (policy.tokenAddresses.length != policy.maxTokenSpends.length) revert PolicyArrayMismatch();
 
         // Feature #14: Intent Expiry & State-Drift Lock
         if (block.timestamp > policy.deadline) {
@@ -445,7 +455,7 @@ contract VeroGuard is EIP712 {
         }
 
         // Feature #11: Recursive MultiSend decoding
-        if (to == multiSend) {
+        if (to == multiSend || (data.length >= 4 && bytes4(data) == 0x8d80ff0a)) {
             bytes memory transactions;
             if (data.length >= 4 && bytes4(data) == 0x8d80ff0a) {
                 bytes memory payload = new bytes(data.length - 4);
@@ -599,6 +609,7 @@ contract VeroGuard is EIP712 {
         snap.ownersHash = ms.getOwnersHash();
         snap.threshold = ms.threshold();
         snap.guard = ms.guard();
+        snap.governanceTimelock = ms.governanceTimelock();
     }
 
     /**
@@ -647,6 +658,9 @@ contract VeroGuard is EIP712 {
         if (ms.guard() != preSnap.guard) {
             revert ControlSlotMutated("guard");
         }
+        if (ms.governanceTimelock() != preSnap.governanceTimelock) {
+            revert ControlSlotMutated("governanceTimelock");
+        }
         if (vault.codehash != preSnap.walletCodeHash) {
             revert ControlSlotMutated("codehash");
         }
@@ -675,9 +689,7 @@ contract VeroGuard is EIP712 {
         (bool ok, bytes memory data) = token.staticcall(
             abi.encodeWithSelector(0x70a08231, account) // balanceOf(address)
         );
-        if (ok && data.length >= 32) {
-            return abi.decode(data, (uint256));
-        }
-        return 0;
+        if (!ok || data.length < 32) revert TokenBalanceUnreadable(token);
+        return abi.decode(data, (uint256));
     }
 }

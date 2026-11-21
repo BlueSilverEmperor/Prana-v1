@@ -79,3 +79,9 @@ def test_recursive_multisend_nested_parsing():
     # Root multiSend + nested multiSend + inner transfer
     targets = [call.target.lower() for call in flattened]
     assert inner_recipient.lower() in targets, "Inner leaf call target must be reached via recursive unpacking"
+
+
+def test_six_word_checksum_known_answer_matches_solidity():
+    """Same vector as SecuritySolutions.t.sol::test_SixWordChecksum_MatchesTheApiAndSdk."""
+    words = compute_six_word_checksum(1, "0x5bd37a4e9b5e5a2bf8547ad565b9dfd10126786c", 42, "0x" + "a" * 64, "0x" + "b" * 64)
+    assert words.replace(" · ", "-") == "train-sand-used-essay-donkey-disease"

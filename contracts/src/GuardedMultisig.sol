@@ -38,6 +38,8 @@ contract GuardedMultisig {
 
     // Registered modules
     mapping(address => bool) public isModuleEnabled;
+    /// @notice Session agents governance has approved. A policy cannot name its own agent.
+    mapping(address => bool) public isSessionAgent;
 
     // Custom Revert Errors
     error UnauthorizedCaller(address caller);
@@ -58,6 +60,7 @@ contract GuardedMultisig {
     event GuardChanged(address indexed oldGuard, address indexed newGuard);
     event ModuleEnabled(address indexed module);
     event ExecutionSuccess(bytes32 indexed txHash);
+    event SessionAgentUpdated(address indexed agent, bool approved);
     event AssetSwept(address indexed token, address indexed recipient, uint256 amount);
 
     modifier onlyGovernance() {
@@ -109,6 +112,11 @@ contract GuardedMultisig {
 
     function setDailySpendCap(uint256 newCap) external onlyGovernance {
         dailySpendCap = newCap;
+    }
+
+    function setSessionAgent(address agent, bool approved) external onlyGovernance {
+        isSessionAgent[agent] = approved;
+        emit SessionAgentUpdated(agent, approved);
     }
 
     function setAgentCooldown(uint256 newCooldown) external onlyGovernance {
@@ -219,6 +227,10 @@ contract GuardedMultisig {
         bytes calldata signatures,
         VeroGuard.IntentPolicy calldata policy
     ) external payable returns (bool success) {
+        // The signatures cover policyHash, which covers policy.vault: requiring it to be this vault stops a
+        // signature for one guarded vault being replayed on another that shares the same owners. An unguarded
+        // vault signs no policy (policyHash is zero), so there is nothing to bind.
+        require(guard == address(0) || policy.vault == address(this), "Policy is for another vault");
         if (guard != address(0) && VeroGuard(guard).deadMansSwitchActive(address(this))) {
             revert DeadMansSwitchActive(address(this));
         }
@@ -248,6 +260,7 @@ contract GuardedMultisig {
             bytes memory singleSig = signatures[:65];
             address recovered = ethSignedTxHash.recover(singleSig);
             require(recovered == policy.sessionAgent, "Invalid session agent signature");
+            require(isSessionAgent[policy.sessionAgent], "Unregistered session agent");
 
             // Velocity limiter: check cooldown between agent transactions
             if (agentCooldown > 0 && lastAgentTxTime[policy.sessionAgent] > 0) {

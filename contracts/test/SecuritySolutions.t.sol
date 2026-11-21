@@ -35,17 +35,18 @@ contract SecuritySolutionsTest is Test {
     }
 
     // 1. Solution 1: 6+ Word Checksum & On-Chain IntentHash Verification
-    function test_SixWordChecksum_Derivation() public view {
-        bytes32 safeTxHash = keccak256("safeTx");
-        bytes32 policyHash = keccak256("policy");
+    function test_SixWordChecksum_MatchesTheApiAndSdk() public view {
+        // Known answer shared with tests/test_security_solutions.py (api-agents four_word_checksum scheme)
         uint16[6] memory indices = guard.computeSixWordChecksumIndices(
-            address(vault),
-            0,
-            safeTxHash,
-            policyHash
+            1,
+            0x5bd37a4e9b5e5A2BF8547Ad565b9dFd10126786C,
+            42,
+            bytes32(0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa),
+            bytes32(0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb)
         );
+        uint16[6] memory expected = [uint16(1848), 1530, 1918, 617, 521, 504];
         for (uint256 i = 0; i < 6; i++) {
-            assertTrue(indices[i] < 2048, "Word index must fit 11-bit BIP-39 range");
+            assertEq(indices[i], expected[i], "six-word checksum differs from the API/SDK scheme");
         }
     }
 

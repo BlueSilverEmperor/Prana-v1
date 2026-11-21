@@ -15,6 +15,7 @@ contract MockQuaiVault {
     function getOwnersHash() external pure returns (bytes32) { return keccak256("owners"); }
     function threshold() external pure returns (uint256) { return 2; }
     function guard() external pure returns (address) { return address(0); }
+    function governanceTimelock() external pure returns (address) { return address(0x71); }
     /// MockUSDT, like USDT, returns nothing from transfer(), so call it without decoding a bool.
     function pay(address token, address to, uint256 amount) external {
         (bool ok,) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, amount));
