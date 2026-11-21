@@ -79,9 +79,9 @@ def get_database_url() -> tuple[str, str, dict]:
             return norm_url, "cloud_postgresql", connect_args
 
     # Fallback to local SQLite for development and offline testing
-    fallback_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "vero_snapshots.db")
-    )
+    # Serverless hosts (Vercel) only allow writes under /tmp
+    base_dir = "/tmp" if os.getenv("VERCEL") else os.path.join(os.path.dirname(__file__), "..", "..")
+    fallback_path = os.path.abspath(os.path.join(base_dir, "vero_snapshots.db"))
     fallback_url = f"sqlite+aiosqlite:///{fallback_path}"
     return fallback_url, "sqlite_fallback", {}
 

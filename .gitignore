@@ -40,3 +40,4 @@ htmlcov/
 tests/integration/contracts/out/
 tests/integration/contracts/cache/
 .vercel
+.env*

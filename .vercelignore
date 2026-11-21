@@ -1,0 +1,17 @@
+.venv
+.git
+.claude
+.taste-skill
+node_modules
+contracts
+scrollcraft
+evals
+docs
+packages
+scripts
+tests
+api-agents/tests
+api-agents/sdk
+**/__pycache__
+*.db
+*.pdf

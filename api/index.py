@@ -6,6 +6,7 @@ Falls back to direct local import if API_AGENTS_URL is not set (for local dev).
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +68,7 @@ if API_AGENTS_URL:
 
     @app.api_route("/health", methods=["GET"])
     @app.api_route("/verify", methods=["GET"])
+    @app.api_route("/verify/{rest:path}", methods=["GET"])
     @app.api_route("/docs", methods=["GET"])
     @app.api_route("/openapi.json", methods=["GET"])
     @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
@@ -93,23 +95,30 @@ if API_AGENTS_URL:
             background=rp_resp.aclose
         )
 else:
-    # Local fallback: mount the internal api_agents app directly
+    # In-process mode (one Vercel function, or local dev): serve the whole api_agents app.
+    # FastAPI keeps included routers as objects, so copying routes one by one misses them; mount it instead.
     try:
         from api_agents.main import app as internal_app
-        # Mount API routes
-        for route in internal_app.routes:
-            if hasattr(route, "path") and (
-                route.path.startswith("/v1")
-                or route.path in ("/health", "/verify", "/docs", "/openapi.json")
-            ):
-                app.routes.append(route)
     except Exception as e:
+        internal_app = None
+
         @app.get("/health")
         async def fallback_health():
             return {"status": "gateway_only", "error": str(e)}
 
-# Serve frontend static files
-if os.path.isdir(frontend_dir):
+if not API_AGENTS_URL and internal_app is not None:
+    # A mounted app's lifespan does not run on its own, so run it with the gateway's (DB init, workers)
+    _gateway_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def _lifespan(gateway):
+        async with internal_app.router.lifespan_context(internal_app):
+            async with _gateway_lifespan(gateway):
+                yield
+
+    app.router.lifespan_context = _lifespan
+    app.mount("/", internal_app)       # API routes, /verify pages and the frontend
+elif os.path.isdir(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 handler = app
