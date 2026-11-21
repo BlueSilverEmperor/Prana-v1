@@ -363,6 +363,47 @@
           </div>
         </div>
 
+        <!-- QUAI NATIVE TOOLS LIVE TELEMETRY CARD (Visible when Quai Subsystem is active) -->
+        <div id="quaiToolsPanel" class="hidden bg-gradient-to-br from-cyan-950/60 to-slate-950 p-4 rounded-xl border border-cyan-500/40 space-y-3">
+          <div class="flex items-center justify-between border-b border-cyan-500/20 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">⛏️</span>
+              <span class="text-xs font-bold uppercase tracking-wider text-cyan-300">Quai Network Native Tools Panel</span>
+            </div>
+            <span id="quaiPrimeBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-200 border border-cyan-500/30">
+              Prime Finality: Prime-3 Region-6 (Finalized)
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs font-mono">
+            <!-- Tool 1: Shard Zone Inspector -->
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase block font-bold">1. Shard Routing Inspector</span>
+              <span id="quaiZoneVerdict" class="text-emerald-400 font-bold block mt-1">✓ Intra-Zone (Cyprus-1)</span>
+              <span id="quaiZonePrefix" class="text-[10px] text-slate-500 block">Prefix Byte: 0x00 [0,0]</span>
+            </div>
+
+            <!-- Tool 2: Native ETX Validator -->
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase block font-bold">2. Native ETX Validator</span>
+              <span id="quaiEtxStatus" class="text-cyan-400 font-bold block mt-1">Consensus-Native (No Bridge)</span>
+              <span id="quaiEtxPath" class="text-[10px] text-slate-500 block">PoEM Merged Mining</span>
+            </div>
+
+            <!-- Tool 3: Dual-Ledger ($QUAI + $QI) Engine -->
+            <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase block font-bold">3. Dual-Ledger Velocity</span>
+              <span id="quaiDualSpend" class="text-indigo-400 font-bold block mt-1">$QUAI Gas + $QI Energy</span>
+              <span id="quaiQiQuota" class="text-[10px] text-slate-500 block">24h $QI Remaining: 1,000 QI</span>
+            </div>
+          </div>
+
+          <div class="p-2.5 rounded-lg bg-black/50 border border-cyan-500/20 flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400">Pelagus Wallet Integration:</span>
+            <span id="quaiPelagusCard" class="text-cyan-300 font-bold">✓ ERC-7730 Formatted (Air-Gap Ready)</span>
+          </div>
+        </div>
+
         <!-- Out-of-Band Dual-Device Verification (Phone Verifier & 4-Word Checksum) -->
         <div class="bg-gradient-to-r from-slate-950 to-slate-900 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-4">
@@ -699,7 +740,7 @@
 
     let currentEngineMode = "standard";
 
-    function setEngineMode(mode) {
+    async function setEngineMode(mode) {
       currentEngineMode = mode;
       const isQuai = mode === "quai";
       const btnEvm = document.getElementById("btnEngineEvm");
@@ -721,9 +762,23 @@
       const dualBadge = document.getElementById("quaiDualAssetBadge");
       if (dualBadge) dualBadge.classList.toggle("hidden", !isQuai);
 
+      const quaiToolsPanel = document.getElementById("quaiToolsPanel");
+      if (quaiToolsPanel) quaiToolsPanel.classList.toggle("hidden", !isQuai);
+
       const walletText = document.getElementById("walletConnectText");
       if (walletText) {
         walletText.innerText = isQuai ? "Connect Pelagus / BlipPay (Cyprus-1)" : "Connect MetaMask / Safe";
+      }
+
+      // Sync backend mode switch
+      try {
+        await fetch(`${API_BASE}/v1/quai/engine/toggle`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: isQuai ? "quai" : "standard" })
+        });
+      } catch (err) {
+        console.warn("Could not sync backend toggle:", err);
       }
 
       loadPreset(currentPreset);

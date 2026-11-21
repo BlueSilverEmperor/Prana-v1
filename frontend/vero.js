@@ -194,6 +194,32 @@
   }), { rootMargin: "-45% 0px -50% 0px" });
   navLinks.map((a) => $(a.getAttribute("href"))).filter(Boolean).forEach((s) => navIo.observe(s));
 
+  window.toggleEngineMode = async (mode) => {
+    const isQuai = mode === "quai";
+    const btnEvm = document.getElementById("toggleEvm");
+    const btnQuai = document.getElementById("toggleQuai");
+    if (btnEvm && btnQuai) {
+      btnEvm.style.background = isQuai ? "transparent" : "#238636";
+      btnEvm.style.color = isQuai ? "#8b949e" : "#fff";
+      btnQuai.style.background = isQuai ? "#0284c7" : "transparent";
+      btnQuai.style.color = isQuai ? "#fff" : "#8b949e";
+    }
+    const chainBadge = document.querySelector(".chain");
+    if (chainBadge) {
+      chainBadge.textContent = isQuai ? "Quai Network · Cyprus-1 [0,0]" : "Ethereum · chain 1";
+      chainBadge.title = isQuai ? "Active: Quai Native Sharded Subsystem (PoEM)" : "Active: Standard EVM Subsystem";
+    }
+    try {
+      await fetch(`${API}/v1/quai/engine/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: isQuai ? "quai" : "standard" })
+      });
+    } catch (e) {
+      console.warn("Toggle sync error:", e);
+    }
+  };
+
   /* ------------------------------------------------------------------ boot -- */
   loadRun().then((r) => {
     runData = r;

@@ -12,18 +12,41 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 from api_agents.adapters.factory import engine_name
+from api_agents.db.connection import close_db, init_db
 from api_agents.routes.firewall_api import get_adapter, router as firewall_router
 from api_agents.routes.redteam_api import router as redteam_router
 from api_agents.routes.vaccines_api import router as vaccines_router
 from api_agents.routes.innovations_api import router as innovations_router
 from api_agents.routes.chain_api import router as chain_router
 from api_agents.routes.six_words_api import phone_router as six_words_phone_router, router as six_words_router
+from api_agents.routes.snapshots_api import router as snapshots_router
+from api_agents.routes.quai_tools_api import router as quai_tools_router
+from api_agents.services.snapshot_scheduler import start_snapshot_worker, stop_snapshot_worker
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize Cloud PostgreSQL / fallback tables on startup
+    try:
+        await init_db()
+        if os.getenv("ENABLE_SNAPSHOT_WORKER", "false").lower() in ("true", "1", "yes"):
+            start_snapshot_worker()
+    except Exception as e:
+        import logging
+        logging.getLogger("vero").error("DB initialization error on startup: %s", e)
+    yield
+    # Shutdown background worker and release connection pool
+    await stop_snapshot_worker()
+    await close_db()
+
 
 app = FastAPI(
     title="Project Vero Firewall API",
     description="Deterministic Transaction Simulation, EIP-712 Intent Guard, Quai Subsystem & Forensic Verification",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -41,6 +64,8 @@ app.include_router(innovations_router)
 app.include_router(chain_router)
 app.include_router(six_words_router)
 app.include_router(six_words_phone_router)
+app.include_router(snapshots_router)
+app.include_router(quai_tools_router)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 web_dir = os.path.join(REPO_ROOT, "web")              # legacy demo HUD
