@@ -53,6 +53,9 @@ RECIPIENTS = (HOT_WALLET, ATTACKER, LOOKALIKE, FRESH)
 AMOUNTS = (1, DECLARED_CAP // 2, DECLARED_CAP, DECLARED_CAP * 2, 10**12, 2**128, MAX_UINT)
 MAX_WRAP = 3
 PADDINGS = (0, 4, 32, 96)
+SPLITS = (1, 2, 3, 4)                              # a drain cut into N calls inside one batch
+DECOY_AMOUNT = DECLARED_CAP // 10                  # a legitimate declared payment placed in front of the attack
+SPLITTABLE = ("transfer", "transferFrom", "ethSend", "increaseAllowance")
 
 SIGNATURES = {
     "transfer": ("transfer(address,uint256)", ["address", "uint256"]),
@@ -74,6 +77,8 @@ class Variant:
     operation: int = 0
     wrap: int = 0
     padding: int = 0
+    split: int = 1
+    decoy: int = 0
 
 
 # ------------------------------------------------------------------ encoding --
@@ -101,14 +106,39 @@ def _pack(operation: int, to: str, value: int, data: bytes) -> bytes:
             + len(data).to_bytes(32, "big") + data)
 
 
+def _pieces(v: Variant) -> list[Variant]:
+    """The drain cut into v.split calls whose amounts add up to v.amount."""
+    if v.split <= 1 or v.primitive not in SPLITTABLE:
+        return [v]
+    share = v.amount // v.split
+    amounts = [share] * (v.split - 1) + [v.amount - share * (v.split - 1)]
+    return [replace(v, amount=a, split=1) for a in amounts]
+
+
+def calls(v: Variant) -> list[tuple[int, str, int, bytes]]:
+    """(operation, to, value, data) for every call in the batch, decoy first."""
+    out = []
+    if v.decoy:
+        out.append((0, USDT, 0, _calldata("transfer", [HOT_WALLET, DECOY_AMOUNT])))
+    for piece in _pieces(v):
+        to, value, data = inner_call(piece)
+        out.append((v.operation, to, value, data + b"\x00" * v.padding if data else data))
+    return out
+
+
+def _multisend(batch: list[tuple[int, str, int, bytes]]) -> bytes:
+    return bytes.fromhex("8d80ff0a") + encode(["bytes"], [b"".join(_pack(*c) for c in batch)])
+
+
 def to_transaction(v: Variant) -> dict:
-    to, value, data = inner_call(v)
-    data = data + b"\x00" * v.padding if data else data
-    operation = v.operation
-    for _ in range(v.wrap):  # each level: the Safe delegatecalls MultiSend with the packed inner tx
-        data = bytes.fromhex("8d80ff0a") + encode(["bytes"], [_pack(operation, to, value, data)])
-        to, value, operation = MULTISEND, 0, 1
-    return {"to": to, "value": str(value), "data": "0x" + data.hex(), "operation": operation}
+    batch = calls(v)
+    if len(batch) == 1 and v.wrap == 0:
+        operation, to, value, data = batch[0]
+        return {"to": to, "value": str(value), "data": "0x" + data.hex(), "operation": operation}
+    data = _multisend(batch)  # the Safe delegatecalls MultiSend with the packed calls
+    for _ in range(max(v.wrap, 1) - 1):  # each extra level nests the batch one MultiSend deeper
+        data = _multisend([(1, MULTISEND, 0, data)])
+    return {"to": MULTISEND, "value": "0", "data": "0x" + data.hex(), "operation": 1}
 
 
 # -------------------------------------------------------------------- oracle --
@@ -125,7 +155,9 @@ def harm(v: Variant) -> int:
         return 0 if declared and v.amount <= DECLARED_CAP else v.amount
     if not declared:
         return v.amount
-    return max(0, v.amount - DECLARED_CAP)
+    # the decoy is also USDT to the declared wallet, so it counts against the same ceiling
+    usdt_to_declared = v.amount + (DECOY_AMOUNT if v.decoy and v.primitive != "ethSend" else 0)
+    return max(0, usdt_to_declared - DECLARED_CAP)
 
 
 # -------------------------------------------------------------------- engine --
@@ -165,9 +197,10 @@ def engine_blocks(v: Variant) -> Optional[bool]:
 
 def propose(v: Variant, rng: random.Random) -> Variant:
     """Symmetric proposal: re-draw one field uniformly from its finite domain."""
-    field = rng.choice(("primitive", "recipient", "amount", "operation", "wrap", "padding"))
+    field = rng.choice(("primitive", "recipient", "amount", "operation", "wrap", "padding", "split", "decoy"))
     domain = {"primitive": PRIMITIVES, "recipient": RECIPIENTS, "amount": AMOUNTS,
-              "operation": (0, 1), "wrap": tuple(range(MAX_WRAP + 1)), "padding": PADDINGS}[field]
+              "operation": (0, 1), "wrap": tuple(range(MAX_WRAP + 1)), "padding": PADDINGS,
+              "split": SPLITS, "decoy": (0, 1)}[field]
     return replace(v, **{field: rng.choice(domain)})
 
 
@@ -228,6 +261,8 @@ def describe(v: Variant) -> str:
     else:
         text = f"{v.primitive} {usdt} to {who}"
     extras = [e for e in ("as DELEGATECALL" if v.operation else "", f"nested {v.wrap}x in MultiSend" if v.wrap else "",
+                          f"split into {v.split} calls" if v.split > 1 and v.primitive in SPLITTABLE else "",
+                          "behind a declared payment" if v.decoy else "",
                           f"padded {v.padding}B" if v.padding else "") if e]
     return text + (f" ({', '.join(extras)})" if extras else "")
 

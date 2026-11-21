@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="vero.css?v=93">
-  <link rel="stylesheet" href="attack.css?v=5">
+  <link rel="stylesheet" href="attack.css?v=6">
 </head>
 <body>
   <div class="app">
@@ -21,7 +21,6 @@
         <a href="console.html" data-tip="Defense stats"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span class="side__label">Defense stats</span></a>
         <a href="console.html#mechanisms" data-tip="Mechanisms"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19.5 6v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="m8.8 12 2.2 2.2 4.4-4.6"/></svg><span class="side__label">Mechanisms</span></a>
         <a href="attack.html" aria-current="page" data-tip="Attack vs defense"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg><span class="side__label">Attack vs defense</span></a>
-        <a href="console.html#scenarios" data-tip="Transactions"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg><span class="side__label">Transactions</span></a>
       </nav>
       <div class="side__foot">
         <a href="/docs" data-tip="API reference"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg><span class="side__label">API reference</span></a>
@@ -83,18 +82,31 @@
         <p class="fine" data-a-note>Each run uses a new seed and runs on the server at <code>/v1/redteam/mcmc</code>; the same seed reproduces the same run.</p>
       </section>
 
+      <section class="tile immune" aria-labelledby="immune-title" data-immune>
+        <header class="tile__head">
+          <div>
+            <p class="stage__tag immune__tag">Immune system</p>
+            <h2 id="immune-title">One vault is attacked, every vault is protected</h2>
+            <p class="tile__meta">When the rules block an attack, the address the attack relied on (a fake implementation, an unlimited spender, a backdoor module, a lookalike recipient) is reported. Once <span data-im-quorum>2</span> different vaults report the same address, it joins the threat registry and rule R12 blocks it for everyone. Token contracts, the vault itself and its declared contacts are never vaccinated.</p>
+          </div>
+          <button class="btn" type="button" data-im-run>Run the vaccination demo</button>
+        </header>
+        <ol class="immune__steps" data-im-steps><li class="immune__empty">Press the button to watch an attacker hit three vaults.</li></ol>
+        <p class="fine" data-im-note>Each run uses a new random attacker address and new vaults, sent to the live engine at <code>/v1/simulate</code>; the registry is read from <code>/v1/vaccines</code>.</p>
+      </section>
+
       <section class="tile how" aria-labelledby="how-title">
         <h2 id="how-title">How the search works</h2>
         <ol class="how__steps">
           <li><b>Start</b> Red chains start from an attack (logic swap, unlimited approval, lookalike payment, unknown recipient). Green chains start from a safe payment to the declared wallet within the declared cap.</li>
-          <li><b>Mutate</b> Each step changes one thing: the method (9 kinds), the recipient, the amount, CALL or DELEGATECALL, nesting inside MultiSend, or padding.</li>
+          <li><b>Mutate</b> Each step changes one thing: the method (9 kinds), the recipient, the amount, CALL or DELEGATECALL, MultiSend nesting, padding, splitting the drain into several calls, or hiding it behind a legitimate declared payment.</li>
           <li><b>Judge twice</b> The rules give a verdict. Separately, the transaction's real effect decides whether it is an attack (moves value or control beyond what was declared) or safe.</li>
           <li><b>Keep the near-misses</b> Metropolis–Hastings keeps moves that get closer to fooling the rules: harmful but allowed for red, safe but blocked for green.</li>
         </ol>
       </section>
     </main>
   </div>
-  <script src="attack.js?v=5"></script>
+  <script src="attack.js?v=6"></script>
   <script src="alive.js?v=2"></script>
 </body>
 </html>

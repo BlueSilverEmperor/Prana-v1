@@ -47,3 +47,15 @@ def test_green_mode_rewards_blocked_harmless_variants():
     assert score(0, True, "green") > score(0, False, "green") > score(10**6, False, "green")
     report = run(steps=120, chains=2, seed=5, mode="green")
     assert report.unique_variants > 0
+
+
+def test_split_allowance_to_declared_spender_is_summed():
+    # found by the composition red team: four increaseAllowance calls each under the ceiling, double it together
+    from simulator.redteam.mcmc import DECLARED_CAP, HOT_WALLET
+    assert engine_blocks(Variant("increaseAllowance", HOT_WALLET, DECLARED_CAP * 2, split=4)) is True
+
+
+def test_split_payment_within_the_ceiling_still_passes():
+    from simulator.redteam.mcmc import DECLARED_CAP, HOT_WALLET
+    assert engine_blocks(Variant("transfer", HOT_WALLET, DECLARED_CAP // 2, split=2, decoy=1)) is False
+    assert engine_blocks(Variant("increaseAllowance", HOT_WALLET, DECLARED_CAP, split=4)) is False

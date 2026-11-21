@@ -42,6 +42,7 @@ from shared.api_schemas import SimulationRequest, SimulationResult, StateDiffSum
 from simulator.constants import UNLIMITED_THRESHOLD  # noqa: E402
 from simulator.context import EngineContext  # noqa: E402
 from simulator.hexutil import normalize_address  # noqa: E402
+from api_agents.vaccination import REGISTRY as VACCINES  # noqa: E402
 from simulator.engine import analyze_offline, simulate  # noqa: E402
 from simulator.renderer.plain_english_renderer import format_amount  # noqa: E402
 
@@ -170,11 +171,13 @@ class VeroEngineAdapter:
         self._cache_size = cache_size
 
     def _context_for(self, req: SimulateRequest) -> EngineContext:
-        """The server context plus this request's own address book and history, never shared across requests."""
-        if not req.contacts and not req.recipient_history:
+        """The server context, the active vaccines, and this request's own address book and history."""
+        vaccines = VACCINES.active()
+        if not req.contacts and not req.recipient_history and not vaccines:
             return self._ctx
         return replace(
             self._ctx,
+            threat_registry=self._ctx.threat_registry | vaccines,
             contacts=self._ctx.contacts | frozenset(normalize_address(a) for a in req.contacts),
             recipient_history=self._ctx.recipient_history | frozenset(normalize_address(a) for a in req.recipient_history),
         )
@@ -202,6 +205,8 @@ class VeroEngineAdapter:
         ctx = self._context_for(req)
         result, fork_failed = await self._run(request, ctx)
         self._remember(req.model_dump_json(), (result, fork_failed))
+        declared = req.declared_intent.allowed_recipients if req.declared_intent else []
+        VACCINES.observe(req.safe_address, result.alerts, VACCINES.protected(req.safe_address, ctx, declared))
         return RawSimulationResult(
             success=result.success, gas_used=int(result.metrics.gasUsed),
             state_diffs=to_state_diffs(result.stateDiff, request.safeAddress, ctx),

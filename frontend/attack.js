@@ -121,6 +121,83 @@
   }
 
   ui.run.addEventListener("click", battle);
+
+  /* --------------------------------------------- immune system: live vaccination demo -- */
+  const immune = { run: $("[data-im-run]"), steps: $("[data-im-steps]"), quorum: $("[data-im-quorum]"), note: $("[data-im-note]") };
+  const USDT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+  const hex = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const randomAddress = () => `0x${hex(crypto.getRandomValues(new Uint8Array(20)))}`;
+  const word = (addr) => addr.replace(/^0x/, "").toLowerCase().padStart(64, "0");
+  const UPGRADE_TO = "0x3659cfe6", APPROVE = "0x095ea7b3", TRANSFER = "0xa9059cbb";
+  const MAX_WORD = "f".repeat(64);
+  const shortAddr = (a) => `${a.slice(0, 8)}…${a.slice(-4)}`;
+
+  async function post(body) {
+    const res = await fetch(`${API}/v1/simulate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`engine answered ${res.status}`);
+    return res.json();
+  }
+
+  async function vaccineFor(address) {
+    const res = await fetch(`${API}/v1/vaccines`);
+    const body = await res.json();
+    immune.quorum.textContent = String(body.quorum);
+    return { quorum: body.quorum, vaccine: body.vaccines.find((v) => v.address === address.toLowerCase()) };
+  }
+
+  function stepRow(who, what, verdict, registry) {
+    const li = el("li", `immune__step ${verdict.decision === "BLOCK" ? "is-blocked" : "is-allowed"}`);
+    const head = el("div", "immune__head");
+    head.append(el("span", "immune__who", who), el("span", "immune__verdict", verdict.decision === "BLOCK" ? "BLOCKED" : "ALLOWED"));
+    li.append(head, el("p", "immune__what", what));
+    const why = (verdict.deterministic_human_warnings || [])[0];
+    if (why) li.append(el("p", "immune__why", why));
+    li.append(el("p", "immune__registry", registry));
+    return li;
+  }
+
+  function registryText(state) {
+    if (!state.vaccine) return "Registry: attacker not reported yet.";
+    const v = state.vaccine;
+    return v.status === "active"
+      ? `Registry: ACTIVE, reported by ${v.reports} vaults. Every vault is now immune to this address.`
+      : `Registry: provisional, ${v.reports} of ${state.quorum} vault reports. Not enforced yet.`;
+  }
+
+  async function vaccinationDemo() {
+    immune.run.disabled = true;
+    immune.run.textContent = "Demo running…";
+    immune.steps.replaceChildren();
+    const attacker = randomAddress(), vaultA = randomAddress(), vaultB = randomAddress(), vaultC = randomAddress();
+    const paySuspect = (vault) => post({ safe_address: vault, to: USDT, data: `${TRANSFER}${word(attacker)}${(1_000_000).toString(16).padStart(64, "0")}`,
+      declared_intent: { allowed_recipients: [attacker], allowed_tokens: [USDT], max_outflow_wei: "100000000" } });
+    const plan = [
+      [`Vault A ${shortAddr(vaultA)}`, `Attacker tries a logic swap: upgradeTo(${shortAddr(attacker)})`,
+        () => post({ safe_address: vaultA, to: vaultA, data: `${UPGRADE_TO}${word(attacker)}` })],
+      [`Vault C ${shortAddr(vaultC)}`, `A signer, fooled, declares ${shortAddr(attacker)} and pays it 1 USDT`, () => paySuspect(vaultC)],
+      [`Vault B ${shortAddr(vaultB)}`, `Attacker tries an unlimited approval to ${shortAddr(attacker)}`,
+        () => post({ safe_address: vaultB, to: USDT, data: `${APPROVE}${word(attacker)}${MAX_WORD}` })],
+      [`Vault C ${shortAddr(vaultC)}`, `The same 1 USDT payment to ${shortAddr(attacker)}, one moment later`, () => paySuspect(vaultC)],
+    ];
+    try {
+      for (const [who, what, send] of plan) {
+        const verdict = await send();
+        const state = await vaccineFor(attacker);
+        immune.steps.append(stepRow(who, what, verdict, registryText(state)));
+        if (!REDUCED) await sleep(900);
+      }
+      const final = await vaccineFor(attacker);
+      immune.note.textContent = final.vaccine?.status === "active"
+        ? `Attacker ${attacker} is now in the shared registry. Two vaults' blocked attacks protected a third vault that had never seen it.`
+        : "The attacker did not reach quorum in this run.";
+    } catch (err) {
+      immune.note.textContent = `The demo could not run: ${err.message}.`;
+    }
+    immune.run.disabled = false;
+    immune.run.textContent = "Run it again";
+  }
+  immune.run.addEventListener("click", vaccinationDemo);
+
   health();
   if (new URLSearchParams(location.search).has("autoplay")) battle();
 })();

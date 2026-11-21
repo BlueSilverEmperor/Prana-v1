@@ -45,7 +45,32 @@ def r1_approvals(inp: AnalysisInput) -> list[RiskAlert]:
         suffix = f" (declared ceiling {ceiling})" if above_ceiling else ""
         out.append(alert("R1", sev, f"Grants {kind} approval on {checksum(ap.token)} to {checksum(ap.spender)}{suffix}",
                          token=ap.token, spender=ap.spender, amount=ap.amount))
-    return out
+    return out + _r1_combined_allowances(inp, already={(a.context["token"], a.context["spender"]) for a in out})
+
+
+def _r1_combined_allowances(inp: AnalysisInput, already: set) -> list[RiskAlert]:
+    """Allowances to one declared spender, added up across the batch, are held to the declared ceiling.
+
+    Found by the MCMC composition red team: several increaseAllowance calls, each under the ceiling,
+    together granted twice the ceiling. Repeated approve() calls overwrite rather than add, so summing
+    them over-counts; that errs on the side of blocking.
+    """
+    if inp.policy is None or int(inp.policy.maxOutflowWei) <= 0:
+        return []
+    ceiling = int(inp.policy.maxOutflowWei)
+    totals: dict[tuple, int] = {}
+    counts: dict[tuple, int] = {}
+    for ap in inp.diff.approvals:
+        if not ap.amount.isdigit() or not inp.declared(ap.spender):
+            continue
+        key = (ap.token, ap.spender)
+        totals[key] = totals.get(key, 0) + int(ap.amount)
+        counts[key] = counts.get(key, 0) + 1
+    return [alert("R1", "HIGH", f"Combined allowances on {checksum(token)} to {checksum(spender)} total {total}, "
+                                f"above the declared ceiling {ceiling} ({counts[(token, spender)]} approvals in one batch)",
+                  token=token, spender=spender, amount=str(total))
+            for (token, spender), total in totals.items()
+            if counts[(token, spender)] > 1 and total > ceiling and (token, spender) not in already]
 
 
 def r2_permits(inp: AnalysisInput) -> list[RiskAlert]:
